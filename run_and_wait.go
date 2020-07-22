@@ -293,40 +293,6 @@ func WaitForBuildComplete(bcName string) error {
 	}
 }
 
-func RunSeqMesher(app *specfemv1.SpecfemApp) error {
-	if _, err := CreateResource(app, newMesherScriptCM, "all"); err != nil {
-		return err
-	}
-
-	jobName, err := CreateResource(app, newMesherJob, "mesher")
-	if err != nil || jobName == "" {
-		return err
-	}
-
-	if err = WaitWithJobLogs(jobName, "", nil); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func RunSeqSolver(app *specfemv1.SpecfemApp) error {
-	if _, err := CreateResource(app, newBashRunSolverCM, "all"); err != nil {
-		return err
-	}
-
-	jobName, err := CreateResource(app, newRunSolverJob, "solver")
-	if err != nil || jobName == "" {
-		return err
-	}
-
-	if err := WaitWithJobLogs(jobName, "", nil); err != nil {
-		return err
-	}
-	
-	return nil
-}
-
 func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
 	jobName, err := CreateResource(app, newSaveSolverOutputJob, "solver")
 	if err != nil {

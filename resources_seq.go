@@ -14,13 +14,12 @@ import (
 )
 
 
-func newSpecfemPVC(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
+func newDefaultPVC(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
 	objName := "specfem"
 
 	return pvcResource, objName, &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      objName,
-			Namespace: NAMESPACE,
 			Labels:    map[string]string{
 				"app": "specfem",
 			},
@@ -42,7 +41,6 @@ func newMesherScriptCM(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, 
 	return cmResource, objName, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      objName,
-			Namespace: NAMESPACE,
 			Labels:    map[string]string{
 				"app": "specfem",
 			},
@@ -270,3 +268,28 @@ func newRunSolverJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 	}
 }
 
+func RunSeqMesher(app *specfemv1.SpecfemApp) error {
+	jobName, err := CreateResource(app, newMesherJob, "mesher")
+	if err != nil || jobName == "" {
+		return err
+	}
+
+	if err = WaitWithJobLogs(jobName, "", nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func RunSeqSolver(app *specfemv1.SpecfemApp) error {
+	jobName, err := CreateResource(app, newRunSolverJob, "solver")
+	if err != nil || jobName == "" {
+		return err
+	}
+
+	if err := WaitWithJobLogs(jobName, "", nil); err != nil {
+		return err
+	}
+	
+	return nil
+}

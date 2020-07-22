@@ -56,7 +56,7 @@ func main() {
 				Ref: "mockup",
 			},
 			Exec: specfemv1.ExecSpec{
-				Nproc: 1,
+				Nproc: 4,
 				Ncore: 16,
 			},
 			Specfem: specfemv1.SpecfemSpec{

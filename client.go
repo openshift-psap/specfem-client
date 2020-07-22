@@ -14,7 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"k8s.io/client-go/kubernetes/scheme"
+	kubeflow "github.com/kubeflow/mpi-operator/pkg/apis/kubeflow/v1"
 )
 
 var client MyClient
@@ -28,6 +29,8 @@ type MyClient struct {
 func InitClient() error {
 	// use the current context in kubeconfig
 	var err error
+	kubeflow.AddToScheme(scheme.Scheme)
+
 	client.Config, err = clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 	if err != nil {
 		log.Fatalln("failed to build k8s config")
@@ -44,6 +47,7 @@ func InitClient() error {
 	if err != nil {
 		return err
 	}
+
 	
 	return nil
 }
@@ -56,8 +60,13 @@ func (c MyClient) Create(gvr schema.GroupVersionResource, obj runtime.Object) er
 
 	unstructuredObj := &unstructured.Unstructured{}
 	unstructuredObj.SetUnstructuredContent(mapObj)
+
+	if gvr.Resource != "storageclasses" && gvr.Resource != "persistentvolumes" {
+		_, err = client.ClientSetDyn.Resource(gvr).Namespace(NAMESPACE).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+	} else {
+		_, err = client.ClientSetDyn.Resource(gvr).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+	}
 	
-	_, err = client.ClientSetDyn.Resource(gvr).Namespace(NAMESPACE).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 	return err
 }
 

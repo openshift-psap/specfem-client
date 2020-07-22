@@ -99,18 +99,24 @@ func CreateResources(app *specfemv1.SpecfemApp) error {
 		return err
 	}
 
-	if app.Spec.Exec.Ncore == 1 {
-		if _, err := CreateResource(app, newSpecfemPVC, "config"); err != nil {
-			return err
-		}
-		
+	if _, err := CreateResource(app, newMesherScriptCM, "all"); err != nil {
+		return err
+	}
+
+	if err := CreateSharedPVC(app); err != nil {
+		return err
+	}
+	
+	if app.Spec.Exec.Nproc == 1 {		
 		if err := RunSeqMesher(app); err != nil {
 			return err
 		}
 	} else {
-		
+		if err := RunMpiMesher(app); err != nil {
+			return err
+		}
 	}
-
+	fmt.Println("----------")
 	CreateSolverImage := CreateSolverImage_buildah
 	if err := CreateSolverImage(app); err != nil {
 		return err
@@ -119,9 +125,19 @@ func CreateResources(app *specfemv1.SpecfemApp) error {
 	if err := CheckImageTag(app, "specfem:solver", "mesher"); err != nil {
 		return err
 	}
-	
-	if err := RunSeqSolver(app); err != nil {
+
+	if _, err := CreateResource(app, newBashRunSolverCM, "all"); err != nil {
 		return err
+	}
+	
+	if app.Spec.Exec.Nproc == 1 {
+		if err := RunSeqSolver(app); err != nil {
+			return err
+		}
+	} else {
+		if err := RunMpiSolver(app); err != nil {
+			return err
+		}
 	}
 
 	if err := RunSaveSolverOutput(app); err != nil {
@@ -148,4 +164,21 @@ func CheckImageTag(app *specfemv1.SpecfemApp, imagetagName string, stage string)
 	}
 	
 	return err
+}
+
+
+func CreateSharedPVC(app *specfemv1.SpecfemApp) error {
+	USE_DEFAULT_PCV_SC := false
+	
+	if USE_DEFAULT_PCV_SC {
+		if _, err := CreateResource(app, newDefaultPVC, "mesher"); err != nil {
+			return err
+		}
+	} else {
+		if err := CreateEfsPVC(app); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
