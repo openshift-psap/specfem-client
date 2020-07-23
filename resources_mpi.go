@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	
 	kubeflow "github.com/kubeflow/mpi-operator/pkg/apis/kubeflow/v1alpha2"
 	kf_common "github.com/kubeflow/common/pkg/apis/common/v1"
@@ -12,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	specfemv1 "gitlab.com/kpouget_psap/specfem-operator/pkg/apis/specfem/v1"
-
 )
 
 
@@ -42,16 +42,18 @@ func newMesherMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								corev1.Container{					
-									Name:  objName+"-mpi-auncher",
+									Name:  objName+"-launcher",
 									Image: "image-registry.openshift-image-registry.svc:5000/"+NAMESPACE+"/specfem:base",
 									Command: []string{
-										"/usr/lib64/openmpi/bin/mpirun", "--allow-run-as-root",
+										"/usr/bin/mpirun.openmpi", "--allow-run-as-root",
 										"-np", fmt.Sprintf("%d", app.Spec.Exec.Nproc),
 										"-bind-to", "none",
 										"-map-by", "slot",
 										"-mca", "pml", "ob1",
 										"-mca", "btl", "^openib",
-										"env",
+										"bash",
+										"-c",
+										"/mnt/helper/run.sh",
 									},
 								},
 							},
@@ -64,7 +66,7 @@ func newMesherMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								corev1.Container{					
-									Name:  objName+"-mpi-worker",
+									Name:  objName+"-worker",
 									Image: "image-registry.openshift-image-registry.svc:5000/"+NAMESPACE+"/specfem:mesher",
 									VolumeMounts: []corev1.VolumeMount{
 										corev1.VolumeMount{
@@ -90,11 +92,11 @@ func newMesherMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 									},
 								},
 								corev1.Volume{
-									Name: "bash-run-solver",
+									Name: "bash-run-mesher",
 									VolumeSource: corev1.VolumeSource{
 										ConfigMap: &corev1.ConfigMapVolumeSource{
 											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "bash-run-solver",
+												Name: "bash-run-mesher",
 											},
 											DefaultMode: f32(0777),
 										},
@@ -123,6 +125,19 @@ func RunMpiMesher(app *specfemv1.SpecfemApp) error {
 		return err
 	}
 
+	var logs *string = nil
+	err = WaitWithJobLogs(jobName+"-launcher", "", &logs)
+	if err != nil {
+		return err
+	}
+	if logs == nil {
+		return fmt.Errorf("Failed to get logs for job/%s", jobName)
+	}
+	
+	fmt.Printf(*logs)
+	
+	log.Printf("MPI mesher done!")
+
 	return nil
 }
 
@@ -132,6 +147,8 @@ func RunMpiSolver(app *specfemv1.SpecfemApp) error {
 		return err
 	}
 
+	//need to wait for the job here
+	
 	if err := WaitWithJobLogs(jobName, "", nil); err != nil {
 		return err
 	}

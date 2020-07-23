@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -43,6 +44,9 @@ func WaitPodRunning(podName string) error {
 			for _, containerStatus := range pod.Status.ContainerStatuses {
 				if containerStatus.State.Waiting != nil {
 					if containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
+						return true
+					}
+					if containerStatus.State.Waiting.Reason == "CreateContainerError" {
 						return true
 					}
 				}
@@ -177,6 +181,8 @@ func WaitWithPodLogs(parentName string, podName string, search string, p_logs **
 			}
 			fmt.Printf("found EOF in the logs...\n")
 			break
+		} else {
+			return err
 		}
 	}
 
@@ -293,14 +299,48 @@ func WaitForBuildComplete(bcName string) error {
 	}
 }
 
+func GetPodLogs(podName string, namespace string) (error, string) {
+	req := client.ClientSet.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{})
+
+	if req == nil {
+		return fmt.Errorf("failed to get the log stream for pod/%s (in %s) ...\n", podName, namespace), ""
+	}
+		
+	podLogs, err := req.Stream(context.TODO())
+
+	if err != nil {
+		return fmt.Errorf("failed to open the log stream for pod/%s (in %s) ...\n", podName, namespace), ""
+	}
+	
+	defer podLogs.Close()
+
+	logs := ""
+	b := make([]byte, 8)
+	for {
+		n, err := podLogs.Read(b)
+		str := string(b[:n])
+		logs += str
+		
+		if err == io.EOF {
+			return nil, logs
+		} else if err != nil {
+			return err, ""
+		}
+	}
+	// unreachable
+}
+
 func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
 	jobName, err := CreateResource(app, newSaveSolverOutputJob, "solver")
 	if err != nil {
 		return err
 	}
 
+	if jobName == "" {
+		return nil
+	}
+	
 	var logs *string = nil
-
 	err = WaitWithJobLogs(jobName, "", &logs)
 	if err != nil {
 		return err
@@ -321,5 +361,77 @@ func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
 	log.Printf("Saved solver logs into '%s'", BUILDLOG_FILENAME)
 	
 	return nil
+}
 
+func TagOneNode(label string, value string) (error, string) {
+	nodes, err := client.ClientSet.CoreV1().Nodes().List(context.TODO(), 
+		metav1.ListOptions{LabelSelector: label+"="+value})
+	if err != nil {
+		return err, ""
+	}
+	var builderNode corev1.Node
+	if len(nodes.Items) == 0 {
+		// need to tag
+		nodes, err := client.ClientSet.CoreV1().Nodes().List(context.TODO(), 
+			metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"})
+		if err != nil {
+			return err, ""
+		}
+		builderNode = nodes.Items[0]
+		builderNode.ObjectMeta.Labels[label] = value
+		_, err = client.ClientSet.CoreV1().Nodes().Update(context.TODO(), &builderNode, metav1.UpdateOptions{})
+		if err != nil {
+			return err, ""
+		}
+	} else {
+		builderNode = nodes.Items[0]
+	}
+	
+	return nil, builderNode.ObjectMeta.Name
+}
+
+func WaitForTunedProfile(app *specfemv1.SpecfemApp, profileName string, nodeName string) error {
+	TUNED_NS := "openshift-cluster-node-tuning-operator"
+	c := client.ClientSet.CoreV1().Pods(TUNED_NS)
+	pods, err := c.List(context.TODO(),
+		metav1.ListOptions{LabelSelector: "openshift-app=tuned"})
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range pods.Items {
+		if pod.Spec.NodeName != nodeName {
+			continue
+		}
+		
+		podName := pod.ObjectMeta.Name
+		for {
+			err, logs := GetPodLogs(podName, TUNED_NS)
+			if err != nil {
+				return err
+			}
+
+			scanner := bufio.NewScanner(strings.NewReader(logs))
+			lastProfileApplied := ""
+			for scanner.Scan() {
+				line := scanner.Text()
+				if !strings.Contains(line, "static tuning from profile") {
+					continue
+				}
+				// 2020-07-21 10:12:31,342 INFO \
+				// tuned.daemon.daemon: static tuning from profile 'openshift-node' applied
+				
+				lastProfileApplied = strings.Split(line, "'")[1]
+			}
+			fmt.Printf("pod/%s has profile '%s'\n", podName, lastProfileApplied)
+			if lastProfileApplied == "openshift-control-plane" || lastProfileApplied == profileName{
+				break
+			}
+			time.Sleep(2)
+			// loop
+		}
+	}
+	log.Printf("Node '%s' has tuned profile '%s'\n", nodeName, profileName)
+	
+	return nil
 }

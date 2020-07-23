@@ -18,7 +18,7 @@ func CreateResource(app *specfemv1.SpecfemApp,
 	resType, objName, obj:= creatorFunction(app)
 	
 	if _, ok := to_delete[stage]; !ok {
-		msg := fmt.Sprintf("Invalid stage '%v' for object %s/%s", stage, resType, objName)
+		msg := fmt.Sprintf("Invalid stage '%v' for object %s/%s | %q", stage, resType, objName, to_delete)
 		if delete_mode {
 			return "", fmt.Errorf(msg)
 		} else {
@@ -74,7 +74,7 @@ func CreateBaseAndMesherImages(app *specfemv1.SpecfemApp) error {
 	if err := CheckImageTag(app, "specfem:mesher", "config"); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -116,7 +116,7 @@ func CreateResources(app *specfemv1.SpecfemApp) error {
 			return err
 		}
 	}
-	fmt.Println("----------")
+
 	CreateSolverImage := CreateSolverImage_buildah
 	if err := CreateSolverImage(app); err != nil {
 		return err
@@ -152,14 +152,19 @@ func CreateResources(app *specfemv1.SpecfemApp) error {
 func CheckImageTag(app *specfemv1.SpecfemApp, imagetagName string, stage string) error {
 	var err error = nil
 	var gvr = imagestreamtagResource
+	var objDesc = "imagestreamtag/"+imagetagName
 	
 	if delete_mode {		
 		if to_delete[stage] {
-			log.Printf("Delete imagestreamtag/%s | %s", imagetagName, stage)
+			log.Printf("Delete %s | %s", objDesc, stage)
 			err = client.Delete(gvr, imagetagName)
+			if err != nil && !errors.IsNotFound(err) {
+				log.Printf("Could not delete %s: %+v", objDesc, err)
+			}
+			err = nil
 		}
 	} else {
-		log.Printf("Checking imagestreamtag/%s | %s", imagetagName, stage)
+		log.Printf("Checking %s | %s", objDesc, stage)
 		_, err = client.Get(gvr, imagetagName)
 	}
 	
@@ -169,16 +174,17 @@ func CheckImageTag(app *specfemv1.SpecfemApp, imagetagName string, stage string)
 
 func CreateSharedPVC(app *specfemv1.SpecfemApp) error {
 	USE_DEFAULT_PCV_SC := false
-	
+
+	var newPVC ResourceCreator
 	if USE_DEFAULT_PCV_SC {
-		if _, err := CreateResource(app, newDefaultPVC, "mesher"); err != nil {
-			return err
-		}
+		newPVC = newDefaultPVC
 	} else {
-		if err := CreateEfsPVC(app); err != nil {
-			return err
-		}
+		newPVC = newEfsPvc
 	}
 
+	if _, err := CreateResource(app, newPVC, "config"); err != nil {
+		return err
+	}
+	
 	return nil
 }

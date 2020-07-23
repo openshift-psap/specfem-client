@@ -142,6 +142,9 @@ func newBuildahBuildSolverImagePod(app *specfemv1.SpecfemApp) (schema.GroupVersi
 			},
 		},
 		Spec: corev1.PodSpec{
+			NodeSelector: map[string]string{
+				"buildah.specfem.build": "",
+			},
 			Containers: []corev1.Container{
 				corev1.Container{
 					
@@ -260,10 +263,15 @@ func CreateSolverImage_buildah(app *specfemv1.SpecfemApp) error {
 		}
 	}
 
-	// wait for fuse module
-	if err := CheckImageTag(app, "specfem:solver", "mesher"); err == nil {
-		log.Println("Found solver image, don't recreate it.")
-		return nil
+	if !delete_mode {
+		if err := CheckImageTag(app, "specfem:solver", "mesher"); err == nil {
+			log.Println("Found solver image, don't recreate it.")
+			return nil
+		}
+		
+		if err := WaitForTunedProfile(app, "openshift-fuse", "ip-10-0-145-12.us-east-2.compute.internal"); err != nil {
+			return err
+		}
 	}
 	
 	podName, err := CreateResource(app, newBuildahBuildSolverImagePod, "mesher")
@@ -276,7 +284,7 @@ func CreateSolverImage_buildah(app *specfemv1.SpecfemApp) error {
 			return err
 		}
 	}
-	
+
 	if err := CheckImageTag(app, "specfem:solver", "mesher"); err != nil {
 		return err
 	}

@@ -3,45 +3,52 @@ package main
 import (
 	"flag"
 	"log"
-	"strings"
 	
 	specfemv1 "gitlab.com/kpouget_psap/specfem-operator/pkg/apis/specfem/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 )
 
-var delete_mode = false
-var to_delete = map[string]bool{
-	"all": false,
-	"buildah": false,
-	"port": false,
-	"config": false,
-	"mesher": false,
-	"solver": false,
-	"none": false,
+var DELETE_KEYS = []string{
+	"all",
+	"buildah",
+	"port",
+	"config",
+	"mesher",
+	"solver",
 }
+var delete_mode = false
 
+var to_delete = map[string]bool{}
 
-func main() {
+func initDelete() {
 	var flag_delete = flag.String("delete", "", "solver,mesher,config,all|none")
 	flag.Parse()
-	if *flag_delete != "" {
-		for _, opt_key := range strings.Split(*flag_delete, ",") {
-			if _, ok := to_delete[opt_key]; ok {
-				to_delete[opt_key] = true
-				delete_mode = true
-			} else {
-				log.Fatalf("FATAL: wrong delete flag option: %v\n", opt_key)
+
+	for _, key := range DELETE_KEYS {
+		delete_it := (key == *flag_delete) || delete_mode
+		to_delete[key] = delete_it 
+		if delete_it {
+			if !delete_mode {
+				log.Println("Stages to delete:")
 			}
+			delete_mode = true
+			log.Println("- ", key)
 		}
-	}
-	if to_delete["all"] {
-		for key, _ := range to_delete {
-			to_delete[key] = true
-		}
-		delete_mode = true
 	}
 
+	if *flag_delete == "" {
+		return
+	}
+	
+	if !delete_mode {
+		log.Fatalf("FATAL: wrong delete flag option: %v\n", *flag_delete)
+	}
+}
+
+func main() {
+	initDelete()
+	
 	if err := InitClient(); err != nil {
 		log.Fatalf("FATAL: %+v\n", err)
 	}
