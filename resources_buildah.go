@@ -142,6 +142,7 @@ func newBuildahBuildSolverImagePod(app *specfemv1.SpecfemApp) (schema.GroupVersi
 			},
 		},
 		Spec: corev1.PodSpec{
+			RestartPolicy: corev1.RestartPolicyNever,
 			NodeSelector: map[string]string{
 				"buildah.specfem.build": "",
 			},
@@ -234,13 +235,13 @@ AUTH="--tls-verify=false --authfile /tmp/.dockercfg"
 IMG_STREAM=image-registry.openshift-image-registry.svc:5000/`+NAMESPACE+`/specfem
 cont=$(buildah $AUTH from $IMG_STREAM:mesher)
 
-buildah run $cont bash -c 'echo "$(date) | Fetching the mesher output with BUILDAH --volume ..." >> /app/oc.build.log'
-buildah run --volume /mnt/shared:/mnt/shared:ro,z $cont bash -c '\
-        cd /app/ && tar xvf /mnt/shared/mesher.tgz && rm -rf DATABASES_MPI/'
+buildah run $cont bash -c 'echo "$(date) | Using BUILDAH --volume to build the solver  ..." >> /app/oc.build.log'
 
-buildah run $cont bash -c '\
+buildah run --volume /mnt/shared:/mnt/shared:rw,z $cont bash -c '\
         echo "$(date) | Building the solver ..." >> /app/oc.build.log && \
-        cd app && make spec && \
+        cd app &&  \
+        mkdir obj && \
+        make spec && \
         rm obj/ -rf && \
         chmod 777 /app -R'
 

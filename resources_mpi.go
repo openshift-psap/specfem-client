@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	
 	kubeflow "github.com/kubeflow/mpi-operator/pkg/apis/kubeflow/v1alpha2"
 	kf_common "github.com/kubeflow/common/pkg/apis/common/v1"
@@ -19,13 +20,14 @@ import (
 
 var mpijobResource = schema.GroupVersionResource{Version: "v1alpha2", Resource: "mpijobs", Group: "kubeflow.org"}
 
-func newMesherMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
-	objName := "mpi-mesher"
+func newSpecfemMpiJob(app *specfemv1.SpecfemApp, stage string) (schema.GroupVersionResource, string, runtime.Object) {
+	objName := "mpi-"+stage
 	f32 := func(s int32) *int32 {
         return &s
     }
 	
 	policy := kf_common.CleanPodPolicyRunning
+	np := app.Spec.Exec.Nproc*app.Spec.Exec.Nproc
 	return mpijobResource, objName, &kubeflow.MPIJob{
 		TypeMeta: metav1.TypeMeta{Kind: "MPIJob", APIVersion: "kubeflow.org/v1alpha2"},
 		ObjectMeta: metav1.ObjectMeta{
@@ -46,7 +48,7 @@ func newMesherMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 									Image: "image-registry.openshift-image-registry.svc:5000/"+NAMESPACE+"/specfem:base",
 									Command: []string{
 										"/usr/bin/mpirun.openmpi", "--allow-run-as-root",
-										"-np", fmt.Sprintf("%d", app.Spec.Exec.Nproc),
+										"-np", fmt.Sprintf("%d", np),
 										"-bind-to", "none",
 										"-map-by", "slot",
 										"-mca", "pml", "ob1",
@@ -61,20 +63,21 @@ func newMesherMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 					},
 				},
 				kubeflow.MPIReplicaTypeWorker: &kf_common.ReplicaSpec{
-					Replicas: f32(2),
+					Replicas: f32(np),
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								corev1.Container{					
 									Name:  objName+"-worker",
-									Image: "image-registry.openshift-image-registry.svc:5000/"+NAMESPACE+"/specfem:mesher",
+									Image: "image-registry.openshift-image-registry.svc:5000/"+NAMESPACE+"/specfem:"+stage,
+									ImagePullPolicy: corev1.PullAlways,
 									VolumeMounts: []corev1.VolumeMount{
 										corev1.VolumeMount{
 											Name: "shared-volume",
 											MountPath: "/mnt/shared/",
 										},
 										corev1.VolumeMount{
-											Name: "bash-run-solver",
+											Name: "bash-run-"+stage,
 											MountPath: "/mnt/helper/run.sh",
 											ReadOnly: true,
 											SubPath: "run.sh",
@@ -92,11 +95,11 @@ func newMesherMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 									},
 								},
 								corev1.Volume{
-									Name: "bash-run-mesher",
+									Name: "bash-run-"+stage,
 									VolumeSource: corev1.VolumeSource{
 										ConfigMap: &corev1.ConfigMapVolumeSource{
 											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "bash-run-mesher",
+												Name: "bash-run-"+stage,
 											},
 											DefaultMode: f32(0777),
 										},
@@ -111,47 +114,57 @@ func newMesherMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 	}
 }
 
-func newSolverMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
-	objName := "mpi-solver"
-
-	return mpijobResource, objName, &kubeflow.MPIJob{
-		
-	}
+func newMesherMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
+	return newSpecfemMpiJob(app, "mesher")
 }
 
-func RunMpiMesher(app *specfemv1.SpecfemApp) error {
-	jobName, err := CreateResource(app, newMesherMpiJob, "mesher")
-	if err != nil || jobName == "" {
+func newSolverMpiJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
+	return newSpecfemMpiJob(app, "solver")
+}
+
+func RunMpiJob(app *specfemv1.SpecfemApp, stage string) error {
+	var newMpiJob ResourceCreator
+	if stage == "mesher" {
+		newMpiJob = newMesherMpiJob
+	} else {
+		newMpiJob = newSolverMpiJob
+	}
+	mpijobName, err := CreateResource(app, newMpiJob, stage)
+	if err != nil || mpijobName == "" {
 		return err
 	}
 
+	jobName := mpijobName+"-launcher"
+
 	var logs *string = nil
-	err = WaitWithJobLogs(jobName+"-launcher", "", &logs)
+	err = WaitWithJobLogs(jobName, "", &logs)
 	if err != nil {
 		return err
 	}
 	if logs == nil {
-		return fmt.Errorf("Failed to get logs for job/%s", jobName)
+		return fmt.Errorf("Failed to get logs for job/%s (from mpijob/%s)", jobName, mpijobName)
 	}
 	
-	fmt.Printf(*logs)
 	
-	log.Printf("MPI mesher done!")
+	fmt.Printf(*logs)
 
+	if strings.Contains(*logs, "processes exited with non-zero status") {
+		return fmt.Errorf("mpijob/%s failed to run properly (job/%s)", mpijobName, jobName)
+	}
+
+	if strings.Contains(*logs, "MPI_ABORT was invoked on rank") {
+		return fmt.Errorf("mpijob/%s was aborted (job/%s)", mpijobName, jobName)
+	}
+	
+	log.Printf("MPI %s done!", stage)
+	
 	return nil
 }
 
-func RunMpiSolver(app *specfemv1.SpecfemApp) error {
-	jobName, err := CreateResource(app, newSolverMpiJob, "solver")
-	if err != nil || jobName == "" {
-		return err
-	}
+func RunMpiMesher(app *specfemv1.SpecfemApp) error {
+	return RunMpiJob(app, "mesher")
+}
 
-	//need to wait for the job here
-	
-	if err := WaitWithJobLogs(jobName, "", nil); err != nil {
-		return err
-	}
-	
-	return nil
+func RunMpiSolver(app *specfemv1.SpecfemApp) error {
+	return RunMpiJob(app, "solver")
 }

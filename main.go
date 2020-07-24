@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	
 	specfemv1 "gitlab.com/kpouget_psap/specfem-operator/pkg/apis/specfem/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 )
 
 var DELETE_KEYS = []string{
@@ -46,6 +46,8 @@ func initDelete() {
 	}
 }
 
+
+
 func main() {
 	initDelete()
 	
@@ -53,23 +55,10 @@ func main() {
 		log.Fatalf("FATAL: %+v\n", err)
 	}
 
-	app := &specfemv1.SpecfemApp{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "specfemapp",
-		},
-		Spec: specfemv1.SpecfemAppSpec{
-			Git: specfemv1.GitSpec{
-				Uri: "https://gitlab.com/kpouget_psap/specfem3d_globe.git",
-				Ref: "mockup",
-			},
-			Exec: specfemv1.ExecSpec{
-				Nproc: 4,
-				Ncore: 16,
-			},
-			Specfem: specfemv1.SpecfemSpec{
-				Nex: 16,
-			},
-		},
+	app := getSpecfemApp()
+
+	if err := checkSpecfemConfig(app); err != nil {
+		log.Fatalf("FATAL: config error: %+v\n", err)
 	}
 
 	if err := CreateResources(app); err != nil {

@@ -129,7 +129,7 @@ func CreateResources(app *specfemv1.SpecfemApp) error {
 	if _, err := CreateResource(app, newBashRunSolverCM, "all"); err != nil {
 		return err
 	}
-	
+
 	if app.Spec.Exec.Nproc == 1 {
 		if err := RunSeqSolver(app); err != nil {
 			return err

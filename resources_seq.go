@@ -47,12 +47,18 @@ func newMesherScriptCM(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, 
 		},
 		Data: map[string]string{
 			"run.sh": `
-set -ex
+set -e
 
-cd app && ./bin/xmeshfem3D
-rm -f /mnt/shared/mesher.tgz
-tar cfz /mnt/shared/mesher.tgz OUTPUT_FILES/ DATABASES_MPI/
-cat OUTPUT_FILES/output_mesher.txt | grep "buffer creation in seconds"
+mkdir /mnt/shared/DATABASES_MPI /mnt/shared/OUTPUT_FILES -p
+
+cd app 
+
+./bin/xmeshfem3D
+
+if [[ -z "$OMPI_COMM_WORLD_RANK" || $OMPI_COMM_WORLD_RANK -eq 0 ]]; then
+  cat OUTPUT_FILES/output_mesher.txt | grep "buffer creation in seconds"
+  env > /mnt/shared/env.mesher
+fi
 `,
 		},
 	}
@@ -156,32 +162,17 @@ func newBashRunSolverCM(app *specfemv1.SpecfemApp) (schema.GroupVersionResource,
 		},
 		Data: map[string]string{
 			"run.sh": `
-set -x
+set -e
 
-cd app || exit
+cd app
 
-if ! tar xvf /mnt/shared/mesher.tgz DATABASES_MPI; then
-  echo "Failed to extract MPI database ..."
-  exit 1
+./bin/xspecfem3D
+
+if [[ -z "$OMPI_COMM_WORLD_RANK" || $OMPI_COMM_WORLD_RANK -eq 0 ]]; then
+  cp oc.build.log /mnt/shared/
+  env > /mnt/shared/env.solver
+  cat OUTPUT_FILES/output_solver.txt | grep "Total elapsed time in seconds"
 fi
-
-SPECFEM_TIMEOUT=15
-timeout $SPECFEM_TIMEOUT ./bin/xspecfem3D
-ret="$?"
-if [ "$ret" == 124 ]; then
-  echo "Timed out after ${SPECFEM_TIMEOUT}s"
-  echo "Timed out after ${SPECFEM_TIMEOUT}s" >> oc.build.log
-elif [ "$ret" != 0 ]; then
-  echo "Execution failed ... (ret=$ret)"
-  exit 1
-fi
-
-set -x
-rm -rf /mnt/shared/OUTPUT_FILES/
-mkdir /mnt/shared/OUTPUT_FILES/
-cp oc.build.log OUTPUT_FILES/* /mnt/shared/OUTPUT_FILES/
-env > /mnt/shared/OUTPUT_FILES/env
-cat OUTPUT_FILES/output_solver.txt | grep "Total elapsed time in seconds"
 `,
 		},
 	}

@@ -139,12 +139,11 @@ func newMesherImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionRe
 }
 
 func newSaveSolverOutputJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
+
 	f32 := func(s int32) *int32 {
         return &s
     }
-	f64 := func(s int64) *int64 {
-        return &s
-    }
+
 	objName := "save-solver-output"
 
 	return jobResource, objName, &batchv1.Job{
@@ -158,8 +157,6 @@ func newSaveSolverOutputJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResou
 		Spec: batchv1.JobSpec{
 			Parallelism: f32(1),
 			Completions: f32(1),
-			ActiveDeadlineSeconds: f64(10),
-			BackoffLimit: f32(1),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      objName,

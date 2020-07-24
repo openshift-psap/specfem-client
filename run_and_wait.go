@@ -133,6 +133,7 @@ func WaitWithPodLogs(parentName string, podName string, search string, p_logs **
 
 	err = WaitPodRunning(podName)
 	if err != nil {
+		log.Printf("WaitPodRunning error: %s", err)
 		return err
 	}
 	
@@ -170,8 +171,8 @@ func WaitWithPodLogs(parentName string, podName string, search string, p_logs **
 			if p_logs == nil {
 				fmt.Println()
 			}
-			fmt.Printf("found '%s' in the logs...\n", search)
 
+			fmt.Printf("found '%s' in the logs...\n", search)
 			break
 		}
 
@@ -181,7 +182,7 @@ func WaitWithPodLogs(parentName string, podName string, search string, p_logs **
 			}
 			fmt.Printf("found EOF in the logs...\n")
 			break
-		} else {
+		} else if err != nil {
 			return err
 		}
 	}
