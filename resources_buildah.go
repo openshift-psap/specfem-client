@@ -98,7 +98,7 @@ func newAfterMeshHelperBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersi
 				Source: buildv1.BuildSource{
 					Type: buildv1.BuildSourceGit,
 					Git: &buildv1.GitBuildSource{
-						URI: "https://gitlab.com/kpouget_psap/specfem-on-openshift.git",
+						URI: BASE_GIT_REPO,
 						Ref: "02_specfem-solver-container_buildah",
 					},
 				},

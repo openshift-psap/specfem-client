@@ -2,11 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
-	
-	specfemv1 "gitlab.com/kpouget_psap/specfem-operator/pkg/apis/specfem/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var DELETE_KEYS = []string{

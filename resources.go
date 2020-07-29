@@ -27,6 +27,9 @@ var routeResource       = schema.GroupVersionResource{Version: "v1", Resource: "
 
 var NAMESPACE = "specfem"
 
+var BASE_GIT_REPO = "https://gitlab.com/kpouget_psap/specfem-client.git"
+var USE_UBI_BASE_IMAGE = true
+
 func newImageStream(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
 	objName := "specfem"
 
@@ -43,7 +46,19 @@ func newImageStream(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, str
 
 func newBaseImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
 	objName := "specfem-base-image"
-
+	build_branch := "00_specfem-base-container"
+	
+	var from_image string
+	if USE_UBI_BASE_IMAGE {
+		from_image = "registry.access.redhat.com/ubi8/ubi"
+		objName += "-ubi"
+		build_branch += "_ubi"
+	} else {
+		from_image = "docker.io/ubuntu:eoan"
+		objName += "-ubuntu"
+		build_branch += "_ubuntu"
+	}
+	
 	return buildconfigResource, objName, &buildv1.BuildConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      objName,
@@ -59,15 +74,18 @@ func newBaseImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionReso
 					DockerStrategy: &buildv1.DockerBuildStrategy{
 						From: &corev1.ObjectReference{
 							Kind: "DockerImage",
-							Name: "docker.io/ubuntu:eoan",
+							Name: from_image,
 						},
+						Env: []corev1.EnvVar{
+							{Name: "SPECFEM_GIT_REPO", Value: app.Spec.Git.Uri},
+						},						
 					},
 				},
 				Source: buildv1.BuildSource{
 					Type: buildv1.BuildSourceGit,
 					Git: &buildv1.GitBuildSource{
-						URI: "https://gitlab.com/kpouget_psap/specfem-on-openshift.git",
-						Ref: "00_specfem-base-container",
+						URI: BASE_GIT_REPO,
+						Ref: build_branch,
 					},
 				},
 				Output: buildv1.BuildOutput{
@@ -107,9 +125,7 @@ func newMesherImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionRe
 							Name: "specfem:base",
 						},
 						Env: []corev1.EnvVar{
-							{Name: "SPECFEM_GIT_REPO", Value: app.Spec.Git.Uri},
 							{Name: "SPECFEM_GIT_BRANCH", Value: app.Spec.Git.Ref},
-							{Name: "OMP_NUM_THREADS", Value: fmt.Sprint(app.Spec.Exec.Ncore)},
 							{Name: "SPECFEM_NPROC", Value: fmt.Sprint(app.Spec.Exec.Nproc)},
 							{Name: "SPECFEM_NEX", Value: fmt.Sprint(app.Spec.Specfem.Nex)},
 						},
@@ -118,7 +134,7 @@ func newMesherImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionRe
 				Source: buildv1.BuildSource{
 					Type: buildv1.BuildSourceGit,
 					Git: &buildv1.GitBuildSource{
-						URI: "https://gitlab.com/kpouget_psap/specfem-on-openshift.git",
+						URI: BASE_GIT_REPO,
 						Ref: "01_specfem-mesher-container",
 					},
 				},
