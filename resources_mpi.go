@@ -155,6 +155,10 @@ func RunMpiJob(app *specfemv1.SpecfemApp, stage string) error {
 	if strings.Contains(*logs, "MPI_ABORT was invoked on rank") {
 		return fmt.Errorf("mpijob/%s was aborted (job/%s)", mpijobName, jobName)
 	}
+
+	if strings.Contains(*logs, "ORTE was unable to reliably start") {
+		return fmt.Errorf("mpijob/%s was aborted (job/%s)", mpijobName, jobName)
+	}
 	
 	log.Printf("MPI %s done!", stage)
 	
