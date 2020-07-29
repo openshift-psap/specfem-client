@@ -78,6 +78,7 @@ func newBaseImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionReso
 						},
 						Env: []corev1.EnvVar{
 							{Name: "SPECFEM_GIT_REPO", Value: app.Spec.Git.Uri},
+							{Name: "SPECFEM_GIT_BRANCH", Value: app.Spec.Git.Ref},
 						},						
 					},
 				},
@@ -125,7 +126,6 @@ func newMesherImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionRe
 							Name: "specfem:base",
 						},
 						Env: []corev1.EnvVar{
-							{Name: "SPECFEM_GIT_BRANCH", Value: app.Spec.Git.Ref},
 							{Name: "SPECFEM_NPROC", Value: fmt.Sprint(app.Spec.Exec.Nproc)},
 							{Name: "SPECFEM_NEX", Value: fmt.Sprint(app.Spec.Specfem.Nex)},
 						},
