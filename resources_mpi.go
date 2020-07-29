@@ -46,8 +46,9 @@ func newSpecfemMpiJob(app *specfemv1.SpecfemApp, stage string) (schema.GroupVers
 								corev1.Container{					
 									Name:  objName+"-launcher",
 									Image: "image-registry.openshift-image-registry.svc:5000/"+NAMESPACE+"/specfem:base",
+									ImagePullPolicy: corev1.PullAlways,
 									Command: []string{
-										"/usr/bin/mpirun.openmpi", "--allow-run-as-root",
+										"mpirun", "--allow-run-as-root",
 										"-np", fmt.Sprintf("%d", np),
 										"-bind-to", "none",
 										"-map-by", "slot",
@@ -157,7 +158,17 @@ func RunMpiJob(app *specfemv1.SpecfemApp, stage string) error {
 	}
 
 	if strings.Contains(*logs, "ORTE was unable to reliably start") {
-		return fmt.Errorf("mpijob/%s was aborted (job/%s)", mpijobName, jobName)
+		return fmt.Errorf("mpijob/%s could not properly start (job/%s)", mpijobName, jobName)
+	}
+
+	if strings.Contains(*logs, "ORTE has lost communication with a remote daemon") {
+		return fmt.Errorf("mpijob/%s could not properly communicate (job/%s)", mpijobName, jobName)
+	}
+
+	// check for failure
+	err = WaitWithJobLogs(jobName, "", &logs)
+	if err != nil {
+		return err
 	}
 	
 	log.Printf("MPI %s done!", stage)
