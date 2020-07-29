@@ -56,7 +56,7 @@ func main() {
 	if err := checkSpecfemConfig(app); err != nil {
 		log.Fatalf("FATAL: config error: %+v\n", err)
 	}
-
+	
 	if err := CreateResources(app); err != nil {
 		log.Fatalf("FATAL: %+v\n", err)
 	}

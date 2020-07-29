@@ -2,18 +2,25 @@ package main
 
 import (
 	"fmt"
+	"math"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	specfemv1 "gitlab.com/kpouget_psap/specfem-operator/pkg/apis/specfem/v1"
 )
 
 func checkSpecfemConfig(app *specfemv1.SpecfemApp) error {
-	nex := app.Spec.Specfem.Nex
-	nproc := app.Spec.Exec.Nproc
-	if nex % (8*nproc) != 0 {
-		return fmt.Errorf("NEX(=%d) must be a multiple of 8*NPROC(=%d)", nex, nproc)
+	
+	actual_nproc_val := int32(math.Sqrt(float64(app.Spec.Exec.Nproc)))
+	if actual_nproc_val*actual_nproc_val != app.Spec.Exec.Nproc {
+		return fmt.Errorf("Invalid nproc value (%d), it must be a perfect square ...",
+			app.Spec.Exec.Nproc)
 	}
 
+	nex := app.Spec.Specfem.Nex
+	if nex % (8*actual_nproc_val) != 0 {
+		return fmt.Errorf("NEX(=%d) must be a multiple of 8*NPROC(=%d)", nex, actual_nproc_val)
+	}
+	
 	return nil
 }
 
@@ -28,7 +35,7 @@ func getSpecfemApp() *specfemv1.SpecfemApp {
 				Ref: "master",
 			},
 			Exec: specfemv1.ExecSpec{
-				Nproc: 2, // number of MPI proc : nproc*nproc
+				Nproc: 4,
 				Ncore: 16,
 			},
 			Specfem: specfemv1.SpecfemSpec{

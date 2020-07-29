@@ -27,7 +27,7 @@ func newSpecfemMpiJob(app *specfemv1.SpecfemApp, stage string) (schema.GroupVers
     }
 	
 	policy := kf_common.CleanPodPolicyRunning
-	np := app.Spec.Exec.Nproc*app.Spec.Exec.Nproc
+	np := app.Spec.Exec.Nproc
 	return mpijobResource, objName, &kubeflow.MPIJob{
 		TypeMeta: metav1.TypeMeta{Kind: "MPIJob", APIVersion: "kubeflow.org/v1alpha2"},
 		ObjectMeta: metav1.ObjectMeta{

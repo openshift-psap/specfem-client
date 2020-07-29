@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 
 	buildv1 "github.com/openshift/api/build/v1"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -108,6 +109,8 @@ func newBaseImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionReso
 func newMesherImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
 	objName := "specfem-mesher-image"
 
+	nproc_value := fmt.Sprint(int32(math.Sqrt(float64(app.Spec.Exec.Nproc))))
+	
 	return buildconfigResource, objName, &buildv1.BuildConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      objName,
@@ -126,7 +129,7 @@ func newMesherImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionRe
 							Name: "specfem:base",
 						},
 						Env: []corev1.EnvVar{
-							{Name: "SPECFEM_NPROC", Value: fmt.Sprint(app.Spec.Exec.Nproc)},
+							{Name: "SPECFEM_NPROC", Value: nproc_value},
 							{Name: "SPECFEM_NEX", Value: fmt.Sprint(app.Spec.Specfem.Nex)},
 						},
 					},
