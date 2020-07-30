@@ -67,6 +67,7 @@ func newSpecfemMpiJob(app *specfemv1.SpecfemApp, stage string) (schema.GroupVers
 					Replicas: f32(np),
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
+							NodeSelector: app.Spec.Resources.WorkerNodeSelector,
 							Containers: []corev1.Container{
 								corev1.Container{					
 									Name:  objName+"-worker",

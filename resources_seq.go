@@ -72,6 +72,7 @@ func newMesherJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, strin
 					},
 				},
 				Spec: corev1.PodSpec{
+					NodeSelector: app.Spec.Resources.WorkerNodeSelector,
 					RestartPolicy: corev1.RestartPolicyNever,
 					Containers: []corev1.Container{
 						corev1.Container{
@@ -187,6 +188,7 @@ func newRunSolverJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 					},
 				},
 				Spec: corev1.PodSpec{
+					NodeSelector: app.Spec.Resources.WorkerNodeSelector,
 					RestartPolicy: corev1.RestartPolicyNever,
 					Containers: []corev1.Container{
 						corev1.Container{

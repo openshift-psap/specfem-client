@@ -36,13 +36,16 @@ func getSpecfemApp() *specfemv1.SpecfemApp {
 			},
 			Exec: specfemv1.ExecSpec{
 				Nproc: 4,
-				Ncore: 16,
+				Ncore: 8,
 			},
 			Specfem: specfemv1.SpecfemSpec{
 				Nex: 32,
 			},
 			Resources: specfemv1.ResourcesSpec{
 				StorageClassName: "aws-efs",
+				WorkerNodeSelector: map[string]string{
+					"node-role.kubernetes.io/worker": "",
+				},
 			},
 		},
 	}
