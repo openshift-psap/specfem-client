@@ -352,16 +352,22 @@ func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
 		return fmt.Errorf("Failed to get logs for job/%s", jobName)
 	}
 
-	BUILDLOG_FILENAME := "/tmp/specfem.solver.log"
-	f, err := os.Create(BUILDLOG_FILENAME)
+	date_uid := time.Now().Format("20060102_150405")
+	
+    SAVELOG_FILENAME := fmt.Sprintf("/tmp/specfem.solver-%dproc-%dcores-%dnex_%s.log",
+		app.Spec.Exec.Nproc, app.Spec.Exec.Ncore, app.Spec.Specfem.Nex, date_uid)
+		
+	output_f, err := os.Create(SAVELOG_FILENAME)
+
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	
+	defer output_f.Close()
 
-	f.WriteString(*logs)
+	output_f.WriteString(*logs)
 
-	log.Printf("Saved solver logs into '%s'", BUILDLOG_FILENAME)
+	log.Printf("Saved solver logs into '%s'", SAVELOG_FILENAME)
 	
 	return nil
 }
