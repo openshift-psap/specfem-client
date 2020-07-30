@@ -131,6 +131,14 @@ func newBuildahBuildSolverImagePod(app *specfemv1.SpecfemApp) (schema.GroupVersi
 			return &f
 		}
 	}
+	
+	pushsecretName, err:= getPushSecretName()
+	if err != nil {
+		log.Fatalf("FATAL: failed to get push secret: %+v", err)
+	}
+
+	log.Printf("Using push secret '%s'", pushsecretName)
+	
 	objName := "buildah-build-solver-image-pod"
 
 	return podResource, objName, &corev1.Pod{
@@ -200,7 +208,7 @@ func newBuildahBuildSolverImagePod(app *specfemv1.SpecfemApp) (schema.GroupVersi
 					Name: "builder-dockercfg-push",
 					VolumeSource: corev1.VolumeSource{
 						Secret: &corev1.SecretVolumeSource{
-							SecretName: "builder-dockercfg-bbskl", // TODO: find dynamically
+							SecretName: pushsecretName, 
 							DefaultMode: f32(384),
 						},
 					},

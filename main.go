@@ -50,7 +50,7 @@ func main() {
 	if err := InitClient(); err != nil {
 		log.Fatalf("FATAL: %+v\n", err)
 	}
-
+	
 	app := getSpecfemApp()
 
 	if err := checkSpecfemConfig(app); err != nil {

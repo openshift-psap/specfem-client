@@ -24,7 +24,7 @@ var jobResource         = schema.GroupVersionResource{Version: "v1", Resource: "
 var buildconfigResource = schema.GroupVersionResource{Version: "v1", Resource: "buildconfigs", Group: "build.openshift.io"}
 var imagestreamResource = schema.GroupVersionResource{Version: "v1", Resource: "imagestreams", Group: "image.openshift.io"}
 var routeResource       = schema.GroupVersionResource{Version: "v1", Resource: "routes",       Group: "route.openshift.io"}
-
+var secretResource       = schema.GroupVersionResource{Version: "v1", Resource: "secrets"}
 
 var NAMESPACE = "specfem"
 

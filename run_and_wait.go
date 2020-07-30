@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"github.com/pkg/errors"
 	"fmt"
 	"io"
 	"log"
@@ -20,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func WaitPodRunning(podName string) error {
@@ -435,4 +437,27 @@ func WaitForTunedProfile(app *specfemv1.SpecfemApp, profileName string, nodeName
 	log.Printf("Node '%s' has tuned profile '%s'\n", nodeName, profileName)
 	
 	return nil
+}
+
+func getPushSecretName() (string, error) {
+
+	secrets := &unstructured.UnstructuredList{}
+
+	secrets.SetAPIVersion("v1")
+	secrets.SetKind("SecretList")
+
+	secrets, err := client.ClientSetDyn.Resource(secretResource).Namespace(NAMESPACE).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return "", errors.Wrap(err, "Client cannot get SecretList")
+	}
+
+	for _, secret := range secrets.Items {
+		secretName := secret.GetName()
+
+		if strings.Contains(secretName, "builder-dockercfg") {
+			return secretName, nil
+		}
+	}
+
+	return "", errors.Wrap(err, "Cannot find Secret builder-dockercfg")
 }

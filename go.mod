@@ -47,6 +47,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
 	github.com/openshift/oc v4.2.0-alpha.0+incompatible
 	github.com/openshift/origin v0.0.0-20160503220234-8f127d736703
+	github.com/pkg/errors v0.9.1
 	gitlab.com/kpouget_psap/specfem-operator v0.0.0-20200721133333-0c653d3eec3d
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
