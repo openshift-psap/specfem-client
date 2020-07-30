@@ -103,7 +103,7 @@ func CreateResources(app *specfemv1.SpecfemApp) error {
 		return err
 	}
 
-	if err := CreateSharedPVC(app); err != nil {
+	if _, err := CreateResource(app, newPVC, "config"); err != nil {
 		return err
 	}
 	
@@ -169,22 +169,4 @@ func CheckImageTag(app *specfemv1.SpecfemApp, imagetagName string, stage string)
 	}
 	
 	return err
-}
-
-
-func CreateSharedPVC(app *specfemv1.SpecfemApp) error {
-	USE_DEFAULT_PCV_SC := false
-
-	var newPVC ResourceCreator
-	if USE_DEFAULT_PCV_SC {
-		newPVC = newDefaultPVC
-	} else {
-		newPVC = newEfsPvc
-	}
-
-	if _, err := CreateResource(app, newPVC, "config"); err != nil {
-		return err
-	}
-	
-	return nil
 }

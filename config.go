@@ -41,6 +41,9 @@ func getSpecfemApp() *specfemv1.SpecfemApp {
 			Specfem: specfemv1.SpecfemSpec{
 				Nex: 32,
 			},
+			Resources: specfemv1.ResourcesSpec{
+				StorageClassName: "aws-efs",
+			},
 		},
 	}
 }

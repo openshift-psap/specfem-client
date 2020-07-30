@@ -8,32 +8,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
 )
-
-
-func newDefaultPVC(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
-	objName := "specfem"
-
-	return pvcResource, objName, &corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objName,
-			Labels:    map[string]string{
-				"app": "specfem",
-			},
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse("1Gi"),
-				},
-			},
-		},
-	}
-}
 
 func newMesherScriptCM(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
 	objName := "bash-run-mesher"
