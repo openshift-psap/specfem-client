@@ -84,6 +84,9 @@ func newSpecfemMpiJob(app *specfemv1.SpecfemApp, stage string) (schema.GroupVers
 											SubPath: "run.sh",
 										},
 									},
+									Env: []corev1.EnvVar{
+										{Name: "OMP_NUM_THREADS", Value: fmt.Sprint(app.Spec.Exec.Ncore)},
+									},
 								},
 							},
 							Volumes: []corev1.Volume{

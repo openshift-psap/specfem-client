@@ -103,6 +103,7 @@ func newMesherJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, strin
 							Image: fmt.Sprintf("image-registry.openshift-image-registry.svc:5000/%v/specfem:mesher", NAMESPACE),
 							Env: []corev1.EnvVar{
 								{Name: "OMPI_MCA_btl_base_warn_component_unused", Value: "0"},
+								{Name: "OMP_NUM_THREADS", Value: fmt.Sprint(app.Spec.Exec.Ncore)},
 							},
 							Command: []string{
 								"bash", "-c",
@@ -215,6 +216,10 @@ func newRunSolverJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, st
 							Name: objName,
 							ImagePullPolicy: corev1.PullAlways,
 							Image: fmt.Sprintf("image-registry.openshift-image-registry.svc:5000/%v/specfem:solver", NAMESPACE),
+							Env: []corev1.EnvVar{
+								{Name: "OMPI_MCA_btl_base_warn_component_unused", Value: "0"},
+								{Name: "OMP_NUM_THREADS", Value: fmt.Sprint(app.Spec.Exec.Ncore)},
+							},
 							Command: []string{
 								"bash", "-c", "/mnt/helper/run.sh",
 							},
