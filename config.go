@@ -5,7 +5,7 @@ import (
 	"math"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	specfemv1 "gitlab.com/kpouget_psap/specfem-operator/pkg/apis/specfem/v1"
+	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
 )
 
 func checkSpecfemConfig(app *specfemv1.SpecfemApp) error {
