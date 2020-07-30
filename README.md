@@ -22,7 +22,7 @@ Requirements
 
 * To build the `UBI8` base image, the cluster must be correctly
   [entitled](https://www.openshift.com/blog/how-to-use-entitled-image-builds-to-build-drivercontainers-with-ubi-on-openshift)
-  (alternatively, the
+  (alternatively, the hard-coded
   [flag](https://gitlab.com/kpouget_psap/specfem-client/-/blob/7a0c6476ab4a1e5ca8f7052c7f54a6a0f536eed4/resources.go#L32)
   `USE_UBI_BASE_IMAGE` can be set to `false` to use the `ubuntu:eon`
   as base image).
@@ -51,24 +51,24 @@ Configuration
 The execution configuration is currently hard-coded in `config.go`:
 
 ```
-    specfemv1.SpecfemApp{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "specfemapp",
+specfemv1.SpecfemApp{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "specfemapp",
+	},
+	Spec: specfemv1.SpecfemAppSpec{
+		Git: specfemv1.GitSpec{
+			Uri: "https://gitlab.com/kpouget_psap/specfem3d_globe.git",
+			Ref: "master",
 		},
-		Spec: specfemv1.SpecfemAppSpec{
-			Git: specfemv1.GitSpec{
-				Uri: "https://gitlab.com/kpouget_psap/specfem3d_globe.git",
-				Ref: "master",
-			},
-			Exec: specfemv1.ExecSpec{
-				Nproc: 4,
-				Ncore: 16,
-			},
-			Specfem: specfemv1.SpecfemSpec{
-				Nex: 32,
-			},
+		Exec: specfemv1.ExecSpec{
+			Nproc: 4,
+			Ncore: 16,
 		},
-	}
+		Specfem: specfemv1.SpecfemSpec{
+			Nex: 32,
+		},
+	},
+}
 ```
 
 Usage
@@ -81,43 +81,43 @@ go run .
 Sample output logs:
 
 ```
-2020/07/30 11:42:59 Create imagestreams/specfem
-2020/07/30 11:42:59 Create buildconfigs/specfem-base-image-ubi
-2020/07/30 11:42:59 BuildConfig 'specfem-base-image-ubi' created
-2020/07/30 11:42:59 Build status of build/specfem-base-image-ubi-1 status: "Complete"
-2020/07/30 11:42:59 Checking imagestreamtag/specfem:base | all
-2020/07/30 11:43:00 Create buildconfigs/specfem-mesher-image
-2020/07/30 11:43:00 BuildConfig 'specfem-mesher-image' created
-2020/07/30 11:43:00 Build status of build/specfem-mesher-image-1 status: "Complete"
-2020/07/30 11:43:00 Checking imagestreamtag/specfem:mesher | config
-2020/07/30 11:43:00 Create configmaps/bash-run-mesher
-2020/07/30 11:43:00 Create persistentvolumeclaims/specfem
-2020/07/30 11:43:01 Create mpijobs/mpi-mesher
-2020/07/30 11:43:01 Status of pod/mpi-mesher-launcher-2nhdl: Succeeded
+Create imagestreams/specfem
+Create buildconfigs/specfem-base-image-ubi
+BuildConfig 'specfem-base-image-ubi' created
+Build status of build/specfem-base-image-ubi-1 status: "Complete"
+Checking imagestreamtag/specfem:base | all
+Create buildconfigs/specfem-mesher-image
+BuildConfig 'specfem-mesher-image' created
+Build status of build/specfem-mesher-image-1 status: "Complete"
+Checking imagestreamtag/specfem:mesher | config
+Create configmaps/bash-run-mesher
+Create persistentvolumeclaims/specfem
+Create mpijobs/mpi-mesher
+Status of pod/mpi-mesher-launcher-2nhdl: Succeeded
 [...]
 Elapsed time for mesh generation and buffer creation in seconds =    29.471269823000000
 [...]
-2020/07/30 11:43:02 MPI mesher done!
-2020/07/30 11:43:02 Create buildconfigs/specfem-after-mesh-helper
-2020/07/30 11:43:02 BuildConfig 'specfem-after-mesh-helper' created
-2020/07/30 11:43:02 Build status of build/specfem-after-mesh-helper-1 status: "Complete"
-2020/07/30 11:43:02 Create configmaps/bash-run-buildah-helper
-2020/07/30 11:43:03 Create tuneds/specfem-fuse-for-buildah
-2020/07/30 11:43:03 Checking imagestreamtag/specfem:solver | mesher
-2020/07/30 11:43:03 Found solver image, don't recreate it.
-2020/07/30 11:43:03 Checking imagestreamtag/specfem:solver | mesher
-2020/07/30 11:43:03 Create configmaps/bash-run-solver
-2020/07/30 11:43:03 Create mpijobs/mpi-solver
+MPI mesher done!
+Create buildconfigs/specfem-after-mesh-helper
+BuildConfig 'specfem-after-mesh-helper' created
+Build status of build/specfem-after-mesh-helper-1 status: "Complete"
+Create configmaps/bash-run-buildah-helper
+Create tuneds/specfem-fuse-for-buildah
+Checking imagestreamtag/specfem:solver | mesher
+Found solver image, don't recreate it.
+Checking imagestreamtag/specfem:solver | mesher
+Create configmaps/bash-run-solver
+Create mpijobs/mpi-solver
 [...]
  Total elapsed time in seconds =    465.18405300000001
 [...]
-2020/07/30 11:43:05 MPI solver done!
-2020/07/30 11:43:05 Create jobs/save-solver-output
-2020/07/30 11:43:05 Status of pod/save-solver-output-dt9s8: Succeeded
-2020/07/30 11:43:06 Status of pod/save-solver-output-dt9s8: Succeeded
-2020/07/30 11:43:06 Saved solver logs into '/tmp/specfem.solver-4proc-16cores-32nex_20200730_114306.log'
-2020/07/30 11:43:06 All done!
-2020/07/30 11:43:06 Done :)
+MPI solver done!
+Create jobs/save-solver-output
+Status of pod/save-solver-output-dt9s8: Succeeded
+Status of pod/save-solver-output-dt9s8: Succeeded
+Saved solver logs into '/tmp/specfem.solver-4proc-16cores-32nex_20200730_114306.log'
+All done!
+Done :)
 ```
 
 As mentioned in the log messages, the solver output logfile
@@ -133,7 +133,7 @@ workload objects must be deleted/recreated to rerun the application.
 
 A helper flag helps deleting the relevant resources:
 
-``
+```
 go run . -delete <flag>
 ```
 
@@ -151,10 +151,3 @@ mesher->solver information sharing
 
 Note that the flags are ordered: setting one flag deletes all the
 resources listed *above*.
-
-
-
-
-
-
-
