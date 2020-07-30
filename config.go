@@ -46,6 +46,7 @@ func getSpecfemApp() *specfemv1.SpecfemApp {
 				WorkerNodeSelector: map[string]string{
 					"node-role.kubernetes.io/worker": "",
 				},
+				SlotsPerWorker: 1,
 			},
 		},
 	}

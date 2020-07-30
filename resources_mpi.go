@@ -35,7 +35,7 @@ func newSpecfemMpiJob(app *specfemv1.SpecfemApp, stage string) (schema.GroupVers
 			Namespace: NAMESPACE,
 		},
 		Spec: kubeflow.MPIJobSpec{
-			SlotsPerWorker: f32(2),
+			SlotsPerWorker: &app.Spec.Resources.SlotsPerWorker,
 			CleanPodPolicy: &policy,
 			MPIReplicaSpecs: map[kubeflow.MPIReplicaType]*kf_common.ReplicaSpec{
 				kubeflow.MPIReplicaTypeLauncher: &kf_common.ReplicaSpec{
