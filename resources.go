@@ -31,7 +31,6 @@ var secretResource       = schema.GroupVersionResource{Version: "v1", Resource: 
 
 var NAMESPACE = "specfem"
 
-var BASE_GIT_REPO = "https://gitlab.com/kpouget_psap/specfem-client.git"
 var USE_UBI_BASE_IMAGE = true
 
 func newImageStream(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
@@ -50,17 +49,16 @@ func newImageStream(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, str
 
 func newBaseImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
 	objName := "specfem-base-image"
-	build_branch := "00_specfem-base-container"
 	
-	var from_image string
+	var from_image, dockerfile string
 	if USE_UBI_BASE_IMAGE {
 		from_image = "registry.access.redhat.com/ubi8/ubi"
 		objName += "-ubi"
-		build_branch += "_ubi"
+		dockerfile = dockerfile_base_container_ubi
 	} else {
 		from_image = "docker.io/ubuntu:eoan"
 		objName += "-ubuntu"
-		build_branch += "_ubuntu"
+		dockerfile = dockerfile_base_container_ubuntu
 	}
 	
 	return buildconfigResource, objName, &buildv1.BuildConfig{
@@ -87,11 +85,7 @@ func newBaseImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionReso
 					},
 				},
 				Source: buildv1.BuildSource{
-					Type: buildv1.BuildSourceGit,
-					Git: &buildv1.GitBuildSource{
-						URI: BASE_GIT_REPO,
-						Ref: build_branch,
-					},
+					Dockerfile: &dockerfile,
 				},
 				Output: buildv1.BuildOutput{
 					To: &corev1.ObjectReference{
@@ -138,11 +132,7 @@ func newMesherImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionRe
 					},
 				},
 				Source: buildv1.BuildSource{
-					Type: buildv1.BuildSourceGit,
-					Git: &buildv1.GitBuildSource{
-						URI: BASE_GIT_REPO,
-						Ref: "01_specfem-mesher-container",
-					},
+					Dockerfile: &dockerfile_mesher_container,
 				},
 				Output: buildv1.BuildOutput{
 					To: &corev1.ObjectReference{

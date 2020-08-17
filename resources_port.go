@@ -16,6 +16,19 @@ import (
 
 )
 
+var dockerfile_solver_container_curl = `
+FROM specfem:mesher
+
+RUN echo "$(date) | Fetching the mesher output from CURL ..." >> /app/oc.build.log && \
+    cd app && \
+    curl http://specfem-share-mesh-specfem.apps.kpouget-gpu.perf-testing.devcluster.openshift.com | tar -xzv
+
+RUN echo "$(date) | Building the solver ..." >> /app/oc.build.log && \
+    cd app && make spec && \
+    rm obj/ -rf && \
+    chmod 777 /app -R
+`
+
 func newPyServerOneFileCM(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
 	objName := "py-serve-one-file"
 	return cmResource, objName, &corev1.ConfigMap{
@@ -234,11 +247,7 @@ func newCurlSolverImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersi
 					},
 				},
 				Source: buildv1.BuildSource{
-					Type: buildv1.BuildSourceGit,
-					Git: &buildv1.GitBuildSource{
-						URI: BASE_GIT_REPO,
-						Ref: "02_specfem-solver-container_curl",
-					},
+					Dockerfile: &dockerfile_solver_container_curl,
 				},
 				Output: buildv1.BuildOutput{
 					To: &corev1.ObjectReference{
