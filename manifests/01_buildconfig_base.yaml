@@ -1,0 +1,31 @@
+kind: BuildConfig
+apiVersion: build.openshift.io/v1
+metadata:
+  name: specfem-base-image
+  labels:
+    application: specfem
+spec:
+  strategy:
+    type: Docker
+    dockerStrategy:
+      from:
+        kind: DockerImage
+        name: {{ if .App.Spec.Resources.UseUbiImage }}registry.access.redhat.com/ubi8/ubi{{ else }}docker.io/ubuntu:eoan{{ end }}
+      env:
+        - name: SPECFEM_GIT_REPO
+          value: {{ .App.Spec.Git.Uri }}
+        - name: SPECFEM_GIT_BRANCH
+          value: {{ .App.Spec.Git.Ref }}
+  source:
+    dockerfile: |
+      {{ if .App.Spec.Resources.UseUbiImage }}
+        {{ index .Manifests "Dockerfile.base_ubi" | indent 8 }}
+      {{ else }}
+        {{ index .Manifests "Dockerfile.base_ubuntu" | indent 8 }}
+      {{ end }}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: specfem:base
+  triggers:
+  - type: ConfigChange

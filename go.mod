@@ -48,7 +48,7 @@ require (
 	github.com/openshift/oc v4.2.0-alpha.0+incompatible
 	github.com/openshift/origin v0.0.0-20160503220234-8f127d736703
 	github.com/pkg/errors v0.9.1
-	gitlab.com/kpouget_psap/specfem-api v0.0.0-20200730140054-67d0766c9df3
+	gitlab.com/kpouget_psap/specfem-api v0.0.0-20200828125509-09dd060122a8
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	k8s.io/api v0.18.5
@@ -57,5 +57,6 @@ require (
 	k8s.io/utils v0.0.0-20200716102541-988ee3149bb2 // indirect
 	sigs.k8s.io/controller-runtime v0.6.1
 	sigs.k8s.io/structured-merge-diff/v2 v2.0.1 // indirect
+	sigs.k8s.io/yaml v1.2.0
 
 )

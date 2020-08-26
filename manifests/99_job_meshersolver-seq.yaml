@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: specfem
+  name: run-{{ .Cfg.MesherSolver.Stage }}
+spec:
+  activeDeadlineSeconds: 150
+  backoffLimit: 1
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      name: run-{{ .Cfg.MesherSolver.Stage }}
+      labels:
+        app: specfem
+    spec:
+      containers:
+      - name: run
+        image: image-registry.openshift-image-registry.svc:5000/{{ .App.ObjectMeta.Namespace }}/specfem:{{ .Cfg.MesherSolver.Stage }}
+        imagePullPolicy: Always
+        command:
+        - bash
+        - -c
+        - /mnt/helper/run.sh
+        env:
+        - name: OMPI_MCA_btl_base_warn_component_unused
+          value: "0"
+        - name: OMP_NUM_THREADS
+          value: "{{ .App.Spec.Exec.Ncore }}"
+        volumeMounts:
+        - mountPath: /mnt/shared/
+          name: shared-volume
+        - mountPath: /mnt/helper/run.sh
+          name: run-sh
+          readOnly: true
+          subPath: run_{{ .Cfg.MesherSolver.Stage }}.sh
+      nodeSelector: {{ range $key, $value := .App.Spec.Resources.WorkerNodeSelector }}
+        {{ $key }}: {{ $value }}
+{{ end }}
+        buildah.specfem.build:
+      restartPolicy: Never
+      volumes:
+      - name: shared-volume
+        persistentVolumeClaim:
+          claimName: specfem
+      - configMap:
+          defaultMode: 511
+          name: run-{{ .Cfg.MesherSolver.Stage }}-sh
+        name: run-sh

@@ -1,0 +1,18 @@
+FROM docker.io/ubuntu:eoan
+
+# Install Deps
+RUN apt-get update && \
+    apt-get install -y \
+            sudo \
+            pkg-config vim \
+            g++ make \
+            gdb strace \
+            curl git \
+            gfortran libgomp1 openmpi-bin libopenmpi-dev \
+            ssh # solves the issue with mpirun failing to launch anything
+
+ENV PATH="${PATH}:/usr/lib64/openmpi/bin/"
+
+RUN git clone $SPECFEM_GIT_REPO -b $SPECFEM_GIT_BRANCH --depth 1 /app \
+ && echo "$(date) | Cloned $SPECFEM_GIT_REPO branch $SPECFEM_GIT_BRANCH (git rev-parse --short HEAD)" >> /app/oc.build.log \
+ && rm -rf /app/.git

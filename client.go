@@ -10,7 +10,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,21 +51,14 @@ func InitClient() error {
 	return nil
 }
 
-func (c MyClient) Create(gvr schema.GroupVersionResource, obj runtime.Object) error {
-	mapObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	if err != nil{
-		return err
-	}
-
-	unstructuredObj := &unstructured.Unstructured{}
-	unstructuredObj.SetUnstructuredContent(mapObj)
+func (c MyClient) Create(gvr schema.GroupVersionResource,  unstructuredObj *unstructured.Unstructured) error {
+	var err error
 
 	if gvr.Resource != "storageclasses" && gvr.Resource != "persistentvolumes" {
 		_, err = client.ClientSetDyn.Resource(gvr).Namespace(NAMESPACE).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 	} else {
 		_, err = client.ClientSetDyn.Resource(gvr).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 	}
-	
 	return err
 }
 

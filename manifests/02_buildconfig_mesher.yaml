@@ -1,0 +1,29 @@
+kind: BuildConfig
+apiVersion: build.openshift.io/v1
+metadata:
+  labels:
+    app: specfem
+  name: specfem-mesher-image
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: specfem:mesher
+  runPolicy: Serial
+  source:
+    dockerfile: |
+        {{ index .Manifests "Dockerfile.mesher" | indent 8 }}
+    type: Dockerfile
+  strategy:
+    type: Docker
+    dockerStrategy:
+      env:
+      - name: SPECFEM_NPROC
+        value: "{{ .App.Spec.Exec.Nproc | isqrt }}"
+      - name: SPECFEM_NEX
+        value: "{{ .App.Spec.Specfem.Nex }}"
+      from:
+        kind: ImageStreamTag
+        name: specfem:base
+  triggers:
+  - type: ImageChange

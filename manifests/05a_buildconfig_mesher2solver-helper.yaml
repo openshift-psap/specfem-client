@@ -1,0 +1,23 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    app: specfem
+  name: specfem-after-mesh-helper
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: specfem:mesher2solver_helper
+  source:
+    type: Dockerfile
+    dockerfile: |
+        {{ index .Manifests "Dockerfile.mesher2solver_helper" | indent 8 }}
+  strategy:
+    dockerStrategy:
+      from:
+        kind: DockerImage
+        name: docker.io/centos:7
+    type: Docker
+  triggers:
+  - type: ConfigChange

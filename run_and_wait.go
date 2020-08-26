@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	buildv1 "github.com/openshift/api/build/v1"
 	buildhelpers "github.com/openshift/oc/pkg/helpers/build"
 
-	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/apimachinery/pkg/fields"
@@ -333,45 +331,6 @@ func GetPodLogs(podName string, namespace string) (error, string) {
 	// unreachable
 }
 
-func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
-	jobName, err := CreateResource(app, newSaveSolverOutputJob, "solver")
-	if err != nil {
-		return err
-	}
-
-	if jobName == "" {
-		return nil
-	}
-	
-	var logs *string = nil
-	err = WaitWithJobLogs(jobName, "", &logs)
-	if err != nil {
-		return err
-	}
-	if logs == nil {
-		return fmt.Errorf("Failed to get logs for job/%s", jobName)
-	}
-
-	date_uid := time.Now().Format("20060102_150405")
-	
-    SAVELOG_FILENAME := fmt.Sprintf("/tmp/specfem.solver-%dproc-%dcores-%dnex_%s.log",
-		app.Spec.Exec.Nproc, app.Spec.Exec.Ncore, app.Spec.Specfem.Nex, date_uid)
-		
-	output_f, err := os.Create(SAVELOG_FILENAME)
-
-	if err != nil {
-		return err
-	}
-	
-	defer output_f.Close()
-
-	output_f.WriteString(*logs)
-
-	log.Printf("Saved solver logs into '%s'", SAVELOG_FILENAME)
-	
-	return nil
-}
-
 func TagOneNode(label string, value string) (error, string) {
 	nodes, err := client.ClientSet.CoreV1().Nodes().List(context.TODO(), 
 		metav1.ListOptions{LabelSelector: label+"="+value})
@@ -399,11 +358,12 @@ func TagOneNode(label string, value string) (error, string) {
 	return nil, builderNode.ObjectMeta.Name
 }
 
-func WaitForTunedProfile(app *specfemv1.SpecfemApp, profileName string, nodeName string) error {
+func WaitForTunedProfile(profileName string, nodeName string, lstOpts metav1.ListOptions) error {
 	TUNED_NS := "openshift-cluster-node-tuning-operator"
 	c := client.ClientSet.CoreV1().Pods(TUNED_NS)
-	pods, err := c.List(context.TODO(),
-		metav1.ListOptions{LabelSelector: "openshift-app=tuned"})
+	pods, err := c.List(context.TODO(), lstOpts)
+	nodeFound := false
+	
 	if err != nil {
 		return err
 	}
@@ -412,7 +372,7 @@ func WaitForTunedProfile(app *specfemv1.SpecfemApp, profileName string, nodeName
 		if pod.Spec.NodeName != nodeName {
 			continue
 		}
-		
+		nodeFound = true
 		podName := pod.ObjectMeta.Name
 		for {
 			err, logs := GetPodLogs(podName, TUNED_NS)
@@ -429,17 +389,20 @@ func WaitForTunedProfile(app *specfemv1.SpecfemApp, profileName string, nodeName
 				}
 				// 2020-07-21 10:12:31,342 INFO \
 				// tuned.daemon.daemon: static tuning from profile 'openshift-node' applied
-				
 				lastProfileApplied = strings.Split(line, "'")[1]
 			}
 			fmt.Printf("pod/%s has profile '%s'\n", podName, lastProfileApplied)
-			if lastProfileApplied == "openshift-control-plane" || lastProfileApplied == profileName{
+			if lastProfileApplied == "openshift-control-plane" || lastProfileApplied == profileName {
 				break
 			}
-			time.Sleep(2)
+			time.Sleep(2 * time.Second)
 			// loop
 		}
 	}
+	if !nodeFound {
+		return fmt.Errorf("Node '%s' not found in the cluster ...\n", nodeName)
+	}
+	
 	log.Printf("Node '%s' has tuned profile '%s'\n", nodeName, profileName)
 	
 	return nil
@@ -466,4 +429,49 @@ func getPushSecretName() (string, error) {
 	}
 
 	return "", errors.Wrap(err, "Cannot find Secret builder-dockercfg")
+}
+
+func GetOrSetNodeTag(tag, value string) (string, error) {
+	log.Printf("WARNING: hard-coded buider node name")
+	return "ip-10-0-143-138.ec2.internal", nil
+}
+
+func WaitMpiJob(mpijobName string) error {
+	jobName := mpijobName+"-launcher"
+
+	var logs *string = nil
+	err := WaitWithJobLogs(jobName, "", &logs)
+	if err != nil {
+		return err
+	}
+	
+	if logs == nil {
+		return fmt.Errorf("Failed to get logs for job/%s (from mpijob/%s)", jobName, mpijobName)
+	}
+	
+	fmt.Printf(*logs)
+
+	if strings.Contains(*logs, "processes exited with non-zero status") {
+		return fmt.Errorf("mpijob/%s failed to run properly (job/%s)", mpijobName, jobName)
+	}
+
+	if strings.Contains(*logs, "MPI_ABORT was invoked on rank") {
+		return fmt.Errorf("mpijob/%s was aborted (job/%s)", mpijobName, jobName)
+	}
+
+	if strings.Contains(*logs, "ORTE was unable to reliably start") {
+		return fmt.Errorf("mpijob/%s could not properly start (job/%s)", mpijobName, jobName)
+	}
+
+	if strings.Contains(*logs, "ORTE has lost communication with a remote daemon") {
+		return fmt.Errorf("mpijob/%s could not properly communicate (job/%s)", mpijobName, jobName)
+	}
+
+	// check for failure
+	err = WaitWithJobLogs(jobName, "", &logs)
+	if err != nil {
+		return err
+	}
+		
+	return nil
 }

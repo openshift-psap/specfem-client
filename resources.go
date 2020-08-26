@@ -1,20 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"math"
-
-	buildv1 "github.com/openshift/api/build/v1"
-	imagev1 "github.com/openshift/api/image/v1"
-	
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "k8s.io/api/core/v1"
-	batchv1 "k8s.io/api/batch/v1"
-	
+	"log"
+		
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/api/resource"
-
+	
 	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
 )
 
@@ -33,208 +23,104 @@ var NAMESPACE = "specfem"
 
 var USE_UBI_BASE_IMAGE = true
 
-func newImageStream(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
-	objName := "specfem"
-
-	return imagestreamResource, objName, &imagev1.ImageStream{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objName,
-			Namespace: NAMESPACE,
-			Labels:    map[string]string{
-				"app": "specfem",
-			},
-		},
+type TemplateCfg struct {
+	ConfigMaps struct {
+		HelperFile struct {
+			ConfigMapName string
+			ManifestName string
+		}
+	}
+	SecretNames struct {
+		DockerCfgPush string
+	}
+	MesherSolver struct {
+		Stage string
 	}
 }
 
-func newBaseImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
-	objName := "specfem-base-image"
+func yamlImageStream() (string, YamlResourceTmpl) {
+	return "00_imagestream.yaml", NoTemplateCfg
+}
+
+func yamlBaseImageBuildConfig() (string, YamlResourceTmpl) {
+	return "01_buildconfig_base.yaml", NoTemplateCfg
+}
+
+func yamlMesherImageBuildConfig() (string, YamlResourceTmpl) {
+	return "02_buildconfig_mesher.yaml", NoTemplateCfg
+}
+
+func yamlPVC() (string, YamlResourceTmpl) {
+	return "03_pvc.yaml", NoTemplateCfg
+}
+
+func yamlMesherScriptCM() (string, YamlResourceTmpl) {
+	return "99_configmap_helper-files.yaml", func(app *specfemv1.SpecfemApp) *TemplateCfg {
+		cfg := &TemplateCfg{}
+		cfg.ConfigMaps.HelperFile.ManifestName = "run_mesher.sh"
+		return cfg
+	}
+}
+
+func newMesher2SolverHelperBuildConfig() (string, YamlResourceTmpl) {
+	return "05a_buildconfig_mesher2solver-helper.yaml", NoTemplateCfg
+}
+
+func yamlBuildahMesher2SolverScriptCM() (string, YamlResourceTmpl) {
+	return "99_configmap_helper-files.yaml", func(app *specfemv1.SpecfemApp) *TemplateCfg {
+		cfg := &TemplateCfg{}
+		cfg.ConfigMaps.HelperFile.ManifestName = "run_mesher2solver.sh"
+		return cfg
+	}
+}
+
+func yamlTunedLoadFuseModule() (string, YamlResourceTmpl) {
+	return "05b_tuned_fuse-module.yaml", NoTemplateCfg
+}
+
+func yamlBuildahBuildSolverImagePod() (string, YamlResourceTmpl) {
+	pushsecretName, err:= getPushSecretName()
+	if err != nil {
+		log.Fatalf("FATAL: failed to get push secret: %+v", err)
+	}
+
+	log.Printf("Using push secret '%s'", pushsecretName)
 	
-	var from_image, dockerfile string
-	if USE_UBI_BASE_IMAGE {
-		from_image = "registry.access.redhat.com/ubi8/ubi"
-		objName += "-ubi"
-		dockerfile = dockerfile_base_container_ubi
-	} else {
-		from_image = "docker.io/ubuntu:eoan"
-		objName += "-ubuntu"
-		dockerfile = dockerfile_base_container_ubuntu
-	}
-	
-	return buildconfigResource, objName, &buildv1.BuildConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objName,
-			Namespace: NAMESPACE,
-			Labels:    map[string]string{
-				"app": "specfem",
-			},
-		},
-		Spec: buildv1.BuildConfigSpec{
-			CommonSpec: buildv1.CommonSpec{
-				Strategy: buildv1.BuildStrategy{
-					Type: buildv1.DockerBuildStrategyType,
-					DockerStrategy: &buildv1.DockerBuildStrategy{
-						From: &corev1.ObjectReference{
-							Kind: "DockerImage",
-							Name: from_image,
-						},
-						Env: []corev1.EnvVar{
-							{Name: "SPECFEM_GIT_REPO", Value: app.Spec.Git.Uri},
-							{Name: "SPECFEM_GIT_BRANCH", Value: app.Spec.Git.Ref},
-						},						
-					},
-				},
-				Source: buildv1.BuildSource{
-					Dockerfile: &dockerfile,
-				},
-				Output: buildv1.BuildOutput{
-					To: &corev1.ObjectReference{
-						Kind: "ImageStreamTag",
-						Name: "specfem:base",
-					},
-				},
-			},
-			Triggers: []buildv1.BuildTriggerPolicy{
-				buildv1.BuildTriggerPolicy{
-					Type: buildv1.ConfigChangeBuildTriggerType,
-				},
-			},
-		},
+	return "05c_job_mesher2solver-builder.yaml", func(app *specfemv1.SpecfemApp) *TemplateCfg {
+		cfg := &TemplateCfg{}
+		cfg.SecretNames.DockerCfgPush = pushsecretName
+		return cfg
 	}
 }
 
-func newMesherImageBuildConfig(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
-	objName := "specfem-mesher-image"
-
-	nproc_value := fmt.Sprint(int32(math.Sqrt(float64(app.Spec.Exec.Nproc))))
-	
-	return buildconfigResource, objName, &buildv1.BuildConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objName,
-			Namespace: NAMESPACE,
-			Labels:    map[string]string{
-				"app": "specfem",
-			},
-		},
-		Spec: buildv1.BuildConfigSpec{
-			CommonSpec: buildv1.CommonSpec{
-				Strategy: buildv1.BuildStrategy{
-					Type: buildv1.DockerBuildStrategyType,
-					DockerStrategy: &buildv1.DockerBuildStrategy{
-						From: &corev1.ObjectReference{
-							Kind: "ImageStreamTag",
-							Name: "specfem:base",
-						},
-						Env: []corev1.EnvVar{
-							{Name: "SPECFEM_NPROC", Value: nproc_value},
-							{Name: "SPECFEM_NEX", Value: fmt.Sprint(app.Spec.Specfem.Nex)},
-						},
-					},
-				},
-				Source: buildv1.BuildSource{
-					Dockerfile: &dockerfile_mesher_container,
-				},
-				Output: buildv1.BuildOutput{
-					To: &corev1.ObjectReference{
-						Kind: "ImageStreamTag",
-						Name: "specfem:mesher",
-					},
-				},
-			},
-			Triggers: []buildv1.BuildTriggerPolicy{
-				buildv1.BuildTriggerPolicy{
-					Type: buildv1.ImageChangeBuildTriggerType,
-				},
-			},
-		},
+func yamlSolverScriptCM() (string, YamlResourceTmpl) {
+	return "99_configmap_helper-files.yaml", func(app *specfemv1.SpecfemApp) *TemplateCfg {
+		cfg := &TemplateCfg{}
+		cfg.ConfigMaps.HelperFile.ManifestName = "run_solver.sh"
+		return cfg
 	}
 }
 
-func newSaveSolverOutputJob(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
-
-	f32 := func(s int32) *int32 {
-        return &s
-    }
-
-	objName := "save-solver-output"
-
-	return jobResource, objName, &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objName,
-			Namespace: NAMESPACE,
-			Labels:    map[string]string{
-				"app": "specfem",
-			},
-		},
-		Spec: batchv1.JobSpec{
-			Parallelism: f32(1),
-			Completions: f32(1),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      objName,
-					Namespace: NAMESPACE,
-					Labels:    map[string]string{
-						"app": "specfem",
-					},
-				},
-				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyNever,
-					Containers: []corev1.Container{
-						corev1.Container{
-							Name: objName,
-							ImagePullPolicy: corev1.PullAlways,
-							Image: "docker.io/centos:7",
-							Command: []string{
-								"cat", "/mnt/shared/OUTPUT_FILES/output_solver.txt",
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								corev1.VolumeMount{
-									Name: "shared-volume",
-									MountPath: "/mnt/shared/",
-								},
-							},
-						},
-					},
-					Volumes: []corev1.Volume{
-						corev1.Volume{
-							Name: "shared-volume",
-							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: "specfem",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
+func yamlRunSeqMesherSolverJob(stage string) YamlResourceSpec {
+	return func() (string, YamlResourceTmpl) {
+		return "99_job_meshersolver-seq.yaml", func(app *specfemv1.SpecfemApp) *TemplateCfg {
+			cfg := &TemplateCfg{}
+			cfg.MesherSolver.Stage = stage
+			return cfg
+		}
 	}
 }
 
-func newPVC(app *specfemv1.SpecfemApp) (schema.GroupVersionResource, string, runtime.Object) {
-	objName := "specfem"
-	storageClass := app.Spec.Resources.StorageClassName
-	volumeMode := corev1.PersistentVolumeFilesystem
-	return pvcResource, objName, &corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objName,
-			Namespace: NAMESPACE,
-			Labels:    map[string]string{
-				"app": "specfem",
-			},
-			Finalizers: []string{
-				"kubernetes.io/pvc-protection",
-			},
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse("1Gi"),
-				},
-			},
-			StorageClassName: &storageClass,
-			VolumeMode: &volumeMode,
-		},
+func yamlRunMpiMesherSolverJob(stage string) YamlResourceSpec {
+	return func() (string, YamlResourceTmpl) {
+		return "99_mpijob_meshersolver.yaml", func(app *specfemv1.SpecfemApp) *TemplateCfg {
+			cfg := &TemplateCfg{}
+			cfg.MesherSolver.Stage = stage
+			return cfg
+		}
 	}
+}
+
+func yamlSaveSolverOutputJob() (string, YamlResourceTmpl) {
+	return "06_job_save-solver-output.yaml", NoTemplateCfg
 }

@@ -1,0 +1,63 @@
+apiVersion: kubeflow.org/v1alpha2
+kind: MPIJob
+metadata:
+  name: mpi-{{ .Cfg.MesherSolver.Stage }}
+spec:
+  cleanPodPolicy: Running
+  slotsPerWorker: {{ .App.Spec.Exec.SlotsPerWorker }}
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+        spec:
+          containers:
+          - name: mpi-launcher
+            command:
+            - mpirun
+            - --allow-run-as-root
+            - -np
+            - "{{ .App.Spec.Exec.Nproc }}"
+            - -bind-to
+            - none
+            - -map-by
+            - slot
+            - -mca
+            - pml
+            - ob1
+            - -mca
+            - btl
+            - ^openib
+            - bash
+            - -c
+            - /mnt/helper/run.sh
+            image: image-registry.openshift-image-registry.svc:5000/{{ .App.ObjectMeta.Namespace }}/specfem:base
+    Worker:
+      replicas: {{ .App.Spec.Exec.Nproc }}
+      template:
+        spec:
+          containers:
+          - name: mpi-worker
+            env:
+            - name: OMP_NUM_THREADS
+              value: "{{ .App.Spec.Exec.Ncore }}"
+            image: image-registry.openshift-image-registry.svc:5000/{{ .App.ObjectMeta.Namespace }}/specfem:{{ .Cfg.MesherSolver.Stage }}
+            imagePullPolicy: Always
+            volumeMounts:
+            - mountPath: /mnt/shared/
+              name: shared-volume
+            - mountPath: /mnt/helper/run.sh
+              name: run-sh
+              readOnly: true
+              subPath: run_{{ .Cfg.MesherSolver.Stage }}.sh
+          nodeSelector: {{ range $key, $value := .App.Spec.Resources.WorkerNodeSelector }}
+            {{ $key }}: {{ $value }}
+{{ end }}
+            buildah.specfem.build:
+          volumes:
+          - name: shared-volume
+            persistentVolumeClaim:
+              claimName: specfem
+          - configMap:
+              defaultMode: 511
+              name: run-{{ .Cfg.MesherSolver.Stage }}-sh
+            name: run-sh

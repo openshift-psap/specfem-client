@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: specfem
+  name: save-solver-output
+spec:
+  backoffLimit: 6
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: specfem
+      name: save-solver-output
+    spec:
+      containers:
+      - command:
+        - cat
+        - /mnt/shared/OUTPUT_FILES/output_solver.txt
+        image: docker.io/centos:7
+        name: save-solver-output
+        volumeMounts:
+        - mountPath: /mnt/shared/
+          name: shared-volume
+      restartPolicy: Never
+      volumes:
+      - name: shared-volume
+        persistentVolumeClaim:
+          claimName: specfem

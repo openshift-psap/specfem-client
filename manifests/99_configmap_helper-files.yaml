@@ -1,0 +1,9 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  labels:
+    app: specfem
+  name: {{ .Cfg.ConfigMaps.HelperFile.ManifestName | escape "." "-" | escape "_" "-" }}
+data:
+  {{ .Cfg.ConfigMaps.HelperFile.ManifestName }} : |
+    {{ index .Manifests .Cfg.ConfigMaps.HelperFile.ManifestName | indent 4 }}

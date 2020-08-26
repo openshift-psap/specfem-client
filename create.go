@@ -1,17 +1,128 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"text/template"
 	"log"
+	"math"
+	"strings"
+	
+	errs "github.com/pkg/errors"
 
 	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
+	"gitlab.com/kpouget_psap/specfem-client/yamlutil"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
+
 )
 
 type ResourceCreator func(app *specfemv1.SpecfemApp)(schema.GroupVersionResource, string, runtime.Object)
+type YamlResourceTmpl func(app *specfemv1.SpecfemApp) *TemplateCfg
+type YamlResourceSpec func() (string, YamlResourceTmpl)
+
+type TemplateBase struct {
+	App *specfemv1.SpecfemApp
+	Cfg *TemplateCfg
+	Manifests *map[string]string
+}
+
+func NoTemplateCfg(app *specfemv1.SpecfemApp) (cfg *TemplateCfg) {
+	return 
+}
+
+func applyTemplate(yamlSpec *[]byte, templateFct YamlResourceTmpl, app *specfemv1.SpecfemApp) error {
+	tmpl_data := TemplateBase{
+		App: app,
+		Cfg: templateFct(app),
+		Manifests: &manifests,
+	}
+	fmap := template.FuncMap{
+        "indent": func(len int, txt string) string {
+			return strings.ReplaceAll(txt, "\n", "\n"+strings.Repeat(" ", len))
+		},
+		"isqrt": func(n int32) int32 {
+			return int32(math.Sqrt(float64(n)))
+		},
+		"escape": func(src, dst string, txt string) string {
+			return strings.ReplaceAll(txt, src, dst)
+		},
+    }
+	log.Printf("-----\n%s\n", string(*yamlSpec))
+
+	tmpl := template.Must(template.New("runtime").Funcs(fmap).Parse(string(*yamlSpec)))
+
+	var buff bytes.Buffer
+	if err := tmpl.Execute(&buff, tmpl_data); err != nil {
+		return errs.Wrap(err, "Cannot templatize spec for resource info injection, check manifest")
+	}
+	*yamlSpec = buff.Bytes()
+	log.Printf("-----\n%s\n", string(*yamlSpec))
+	return nil
+}
+
+func createFromYamlManifest(yamlManifest string, templateFct YamlResourceTmpl, app *specfemv1.SpecfemApp) (schema.GroupVersionResource, *unstructured.Unstructured, error) {
+	namespace := NAMESPACE
+	scanner := yamlutil.NewYAMLScanner([]byte(manifests[yamlManifest]))
+
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return schema.GroupVersionResource{}, nil, errs.Wrap(err, "Failed to scan manifest ")
+		}
+		return schema.GroupVersionResource{}, nil, fmt.Errorf("YAML empty document")
+	}
+	
+	yamlSpec := scanner.Bytes()
+
+	if scanner.Scan() {
+		return schema.GroupVersionResource{}, nil, fmt.Errorf("Cannot have multiple YAML in one file")
+	}
+	
+	if err := applyTemplate(&yamlSpec, templateFct, app); err != nil {
+		return schema.GroupVersionResource{}, nil, errs.Wrap(err, "Cannot inject runtime information")
+	}
+	// apply twice as file may be inject in the file run
+	if err := applyTemplate(&yamlSpec, templateFct, app); err != nil {
+		return schema.GroupVersionResource{}, nil, errs.Wrap(err, "Cannot inject runtime information")
+	}
+
+	obj := &unstructured.Unstructured{}
+	jsonSpec, err := yaml.YAMLToJSON(yamlSpec)
+	if err != nil {
+		return schema.GroupVersionResource{}, nil, errs.Wrap(err, "Could not convert yaml file to json "+string(yamlSpec))
+	}
+	
+	if err = obj.UnmarshalJSON(jsonSpec); err != nil {
+		return schema.GroupVersionResource{}, nil, errs.Wrap(err, "Cannot unmarshall json spec, check your manifests")
+	}
+	
+	obj.SetNamespace(namespace)
+	
+	resType := schema.GroupVersionResource{
+		Version: obj.GroupVersionKind().Version,
+		Group: obj.GroupVersionKind().Group,
+		Resource: strings.ToLower(obj.GetKind()) + "s",
+	}
+	
+	return resType, obj, nil
+}
+
+func CreateYamlResource(app *specfemv1.SpecfemApp, yamlSpecFct YamlResourceSpec, stage string) (string, error) {
+	yamlManifest, templateFct := yamlSpecFct()
+
+	resType, obj, err := createFromYamlManifest(yamlManifest, templateFct, app)
+	if err != nil {
+		return "", errs.Wrap(err, fmt.Sprintf("Cannot create the YAML resource from Yaml file '%+v'", yamlManifest))
+	}
+
+	objName := obj.GetName()
+	
+	return doCreateResource(resType, obj, objName, stage)
+}
 
 func CreateResource(app *specfemv1.SpecfemApp,
 	creatorFunction ResourceCreator, stage string) (string, error) {
@@ -26,7 +137,34 @@ func CreateResource(app *specfemv1.SpecfemApp,
 		}
 	}
 
-	objDesc := fmt.Sprintf("%s/%s", resType.Resource, objName)
+	mapObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil{
+		return "", err
+	}
+
+	unstructuredObj := &unstructured.Unstructured{}
+	unstructuredObj.SetUnstructuredContent(mapObj)
+	
+	return doCreateResource(resType, unstructuredObj, objName, stage)
+}
+
+func doCreateResource(resType schema.GroupVersionResource, obj *unstructured.Unstructured, objName string, stage string) (string, error) {
+	
+	if _, ok := to_delete[stage]; !ok {
+		msg := fmt.Sprintf("Invalid stage '%v' for object %s/%s | %q", stage, resType, objName, to_delete)
+		if delete_mode {
+			return "", fmt.Errorf(msg)
+		} else {
+			log.Printf(msg)
+		}
+	}
+	var objDesc string
+	if  obj.GetKind() != "" {
+		objDesc = fmt.Sprintf("%s/%s", obj.GetKind(), objName)
+	} else {
+		res := resType.GroupResource().Resource
+		objDesc = fmt.Sprintf("@X@ %s/%s", res[:len(res)-1], objName)
+	}
 	var err error
 	if delete_mode {		
 		if to_delete[stage] {
@@ -38,48 +176,21 @@ func CreateResource(app *specfemv1.SpecfemApp,
 		} else {
 			log.Printf("Keep %s | %s", objDesc, stage)
 		}
-		objName = ""
-	} else {
-		log.Printf("Create %s", objDesc)
-		err = client.Create(resType, obj)
-		if err != nil && !errors.IsAlreadyExists(err) {
-			log.Printf("Failed to create %s: %+v", objDesc, err)
-			return "", err
-		}
+		return "", nil
 	}
-
 	
+	log.Printf("Create %s", objDesc)
+	err = client.Create(resType, obj)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		log.Printf("Failed to create %s: %+v", objDesc, err)
+		return "", err
+	}
 
 	return objName, nil
 }
 
-func CreateBaseAndMesherImages(app *specfemv1.SpecfemApp) error {
-	_, err := CreateResource(app, newImageStream, "all")
-	if err != nil {
-		return err
-	}
-
-	if err := CreateAndWaitBuildConfig(app, newBaseImageBuildConfig, "all"); err != nil {
-		return err
-	}
-
-	if err := CheckImageTag(app, "specfem:base", "all"); err != nil {
-		return err
-	}
-	
-	if err := CreateAndWaitBuildConfig(app, newMesherImageBuildConfig, "config"); err != nil {
-		return err
-	}
-
-	if err := CheckImageTag(app, "specfem:mesher", "config"); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func CreateAndWaitBuildConfig(app *specfemv1.SpecfemApp, creatorFunction ResourceCreator, stage string) error{
-	bcName, err := CreateResource(app, creatorFunction, stage)
+func CreateAndWaitYamlBuildConfig(app *specfemv1.SpecfemApp, yamlSpecFct YamlResourceSpec, stage string) error{
+	bcName, err := CreateYamlResource(app, yamlSpecFct, stage)
 	if err != nil || bcName == "" {
 		return err
 	}
@@ -94,62 +205,7 @@ func CreateAndWaitBuildConfig(app *specfemv1.SpecfemApp, creatorFunction Resourc
 	return nil
 }
 
-func CreateResources(app *specfemv1.SpecfemApp) error {
-	if err := CreateBaseAndMesherImages(app); err != nil {
-		return err
-	}
-
-	if _, err := CreateResource(app, newMesherScriptCM, "all"); err != nil {
-		return err
-	}
-
-	if _, err := CreateResource(app, newPVC, "config"); err != nil {
-		return err
-	}
-	
-	if app.Spec.Exec.Nproc == 1 {		
-		if err := RunSeqMesher(app); err != nil {
-			return err
-		}
-	} else {
-		if err := RunMpiMesher(app); err != nil {
-			return err
-		}
-	}
-
-	CreateSolverImage := CreateSolverImage_buildah
-	if err := CreateSolverImage(app); err != nil {
-		return err
-	}
-
-	if err := CheckImageTag(app, "specfem:solver", "mesher"); err != nil {
-		return err
-	}
-
-	if _, err := CreateResource(app, newBashRunSolverCM, "all"); err != nil {
-		return err
-	}
-
-	if app.Spec.Exec.Nproc == 1 {
-		if err := RunSeqSolver(app); err != nil {
-			return err
-		}
-	} else {
-		if err := RunMpiSolver(app); err != nil {
-			return err
-		}
-	}
-
-	if err := RunSaveSolverOutput(app); err != nil {
-		return err
-	}
-
-	log.Println("All done!")
-
-	return nil
-}
-
-func CheckImageTag(app *specfemv1.SpecfemApp, imagetagName string, stage string) error {
+func CheckImageTag(imagetagName string, stage string) error {
 	var err error = nil
 	var gvr = imagestreamtagResource
 	var objDesc = "imagestreamtag/"+imagetagName

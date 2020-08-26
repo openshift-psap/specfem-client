@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	
+	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
 )
 
 var DELETE_KEYS = []string{
@@ -45,20 +48,38 @@ func initDelete() {
 
 
 func main() {
-	initDelete()
+	var err error
 	
-	if err := InitClient(); err != nil {
+	initDelete()
+
+	if err = InitClient(); err != nil {
+		log.Fatalf("FATAL: %+v\n", err)
+	}
+
+	if err = FetchManifests(); err != nil {
 		log.Fatalf("FATAL: %+v\n", err)
 	}
 	
-	app := getSpecfemApp()
+	var configName string
+	if len(os.Args) > 1 && os.Args[1][0] != '-' {
+		configName = os.Args[1]
+	} else {
+		configName = "specfem-sample"
+	}
+	
+	var app *specfemv1.SpecfemApp
 
-	if err := checkSpecfemConfig(app); err != nil {
+	if app, err = getSpecfemConfig(configName); err != nil {
+		log.Fatalf("FATAL: failed to get the application configuration: %+v\n", err)
+	}
+
+	if err = checkSpecfemConfig(app); err != nil {
 		log.Fatalf("FATAL: config error: %+v\n", err)
 	}
-	
-	if err := CreateResources(app); err != nil {
-		log.Fatalf("FATAL: %+v\n", err)
+
+	if err = RunSpecfem(app); err != nil {
+		log.Fatalf("FATAL: %v\n", err)
 	}
+	
 	log.Println("Done :)")
 }
