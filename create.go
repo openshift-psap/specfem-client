@@ -52,7 +52,6 @@ func applyTemplate(yamlSpec *[]byte, templateFct YamlResourceTmpl, app *specfemv
 			return strings.ReplaceAll(txt, src, dst)
 		},
     }
-	log.Printf("-----\n%s\n", string(*yamlSpec))
 
 	tmpl := template.Must(template.New("runtime").Funcs(fmap).Parse(string(*yamlSpec)))
 
@@ -61,7 +60,7 @@ func applyTemplate(yamlSpec *[]byte, templateFct YamlResourceTmpl, app *specfemv
 		return errs.Wrap(err, "Cannot templatize spec for resource info injection, check manifest")
 	}
 	*yamlSpec = buff.Bytes()
-	log.Printf("-----\n%s\n", string(*yamlSpec))
+
 	return nil
 }
 
