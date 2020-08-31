@@ -1,7 +1,7 @@
 Specfem OpenShift GO client
 ===========================
 
-This repository is *experimental*, and provided without guarantee of
+This repository is *experimental*. It is provided without guarantee of
 stability and/or valid results.
 
 This repository contains a GO client for running
@@ -20,18 +20,20 @@ This repository contains a GO client for running
 Requirements
 ============
 
+* The Node Tuning Operator must be [installed](https://github.com/openshift/cluster-node-tuning-operator)
+* Kubeflow MPI operator must be [installed](https://github.com/kubeflow/mpi-operator#installation)
+
 * To build the `UBI8` base image, the cluster must be correctly
   [entitled](https://www.openshift.com/blog/how-to-use-entitled-image-builds-to-build-drivercontainers-with-ubi-on-openshift)
-  (alternatively, the hard-coded
-  [flag](https://gitlab.com/kpouget_psap/specfem-client/-/blob/7a0c6476ab4a1e5ca8f7052c7f54a6a0f536eed4/resources.go#L32)
-  `USE_UBI_BASE_IMAGE` can be set to `false` to use the `ubuntu:eon`
-  as base image).
-* The Kubeflow MPI operator must be [installed](https://github.com/kubeflow/mpi-operator#installation)
-* Amazon [EFS](https://aws.amazon.com/efs/) must be setup, to provide
-  a `ReadWriteMany` filesystem (see
-  [`resources_pvc_efs.go`](https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/resources_pvc_efs.go#L15)
-  for the storage-class configuration) (TODO: pass storage class name
-  in the main SpecfemApp configuration object).
+  (alternatively, the
+  [flag](https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/config/specfem-sample.yaml#L17)
+  `spec.resources.useUbiImage` can be set to `false` to use the
+  `ubuntu:eon` as base image).
+* A `ReadWriteMany` file-system must be available (see
+  [`spec.resources.useUbiImage`](https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/config/specfem-sample.yaml#L18)
+  to configure the storage-class name) for the storage-class
+  configuration). [Amazon EFS](https://aws.amazon.com/efs/) provides
+  such a file-system.
 * Environment variable `KUBECONFIG` must point to a valid `kubeconfig`
   file
 * Tested with OpenShift `4.4.8`
@@ -48,81 +50,82 @@ this diagram for an overview of the control flow:
 Configuration
 =============
 
-The execution configuration is currently hard-coded in `config.go`:
+The configuration file must be stored in the `config` directory, and
+passed as the first command-line argument (without `.yaml`
+extension). If no argument is provided,
+[`config/specfem-sample.yaml`](https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/config/specfem-sample.yaml)
+is used:
 
 ```
-specfemv1.SpecfemApp{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "specfemapp",
-	},
-	Spec: specfemv1.SpecfemAppSpec{
-		Git: specfemv1.GitSpec{
-			Uri: "https://gitlab.com/kpouget_psap/specfem3d_globe.git",
-			Ref: "master",
-		},
-		Exec: specfemv1.ExecSpec{
-			Nproc: 4,
-			Ncore: 16,
-		},
-		Specfem: specfemv1.SpecfemSpec{
-			Nex: 32,
-		},
-	},
-}
+apiVersion: specfem.kpouget.psap/v1alpha1
+kind: SpecfemApp
+metadata:
+  name: specfem-sample
+  namespace: specfem
+spec:
+  git:
+    uri: https://gitlab.com/kpouget_psap/specfem3d_globe.git
+    ref: mockup
+  exec:
+    nproc: 1
+    ncore: 8
+    slotsPerWorker: 1
+  specfem:
+    nex: 32
+  resources:
+    useUbiImage: true
+    storageClassName: ""
+    workerNodeSelector:
+      node-role.kubernetes.io/worker:
 ```
 
 Usage
 =====
 
 ```
-go run .
+go run . [config name]
 ```
 
 Sample output logs:
 
 ```
-Create imagestreams/specfem
-Create buildconfigs/specfem-base-image-ubi
-BuildConfig 'specfem-base-image-ubi' created
-Build status of build/specfem-base-image-ubi-1 status: "Complete"
+Create ImageStream/specfem
+Create BuildConfig/specfem-base-image
+BuildConfig 'specfem-base-image' created
+Build status of build/specfem-base-image-1 status: "Complete"
 Checking imagestreamtag/specfem:base | all
-Create buildconfigs/specfem-mesher-image
+Create BuildConfig/specfem-mesher-image
 BuildConfig 'specfem-mesher-image' created
 Build status of build/specfem-mesher-image-1 status: "Complete"
 Checking imagestreamtag/specfem:mesher | config
-Create configmaps/bash-run-mesher
-Create persistentvolumeclaims/specfem
-Create mpijobs/mpi-mesher
-Status of pod/mpi-mesher-launcher-2nhdl: Succeeded
-[...]
-Elapsed time for mesh generation and buffer creation in seconds =    29.471269823000000
-[...]
+Create ConfigMap/run-mesher-sh
+Create PersistentVolumeClaim/specfem
+Create MPIJob/mpi-mesher
+Status of pod/mpi-mesher-launcher-gjgks: Succeeded
+Status of pod/mpi-mesher-launcher-gjgks: Succeeded
+<mesher output redacted>
 MPI mesher done!
-Create buildconfigs/specfem-after-mesh-helper
+Create BuildConfig/specfem-after-mesh-helper
 BuildConfig 'specfem-after-mesh-helper' created
 Build status of build/specfem-after-mesh-helper-1 status: "Complete"
-Create configmaps/bash-run-buildah-helper
-Create tuneds/specfem-fuse-for-buildah
+Create ConfigMap/run-mesher2solver-sh
+Create Tuned/specfem-fuse-for-buildah
 Checking imagestreamtag/specfem:solver | mesher
 Found solver image, don't recreate it.
 Checking imagestreamtag/specfem:solver | mesher
-Create configmaps/bash-run-solver
-Create mpijobs/mpi-solver
-[...]
- Total elapsed time in seconds =    465.18405300000001
-[...]
+Create ConfigMap/run-solver-sh
+Create MPIJob/mpi-solver
+<solver output redacted>
 MPI solver done!
-Create jobs/save-solver-output
-Status of pod/save-solver-output-dt9s8: Succeeded
-Status of pod/save-solver-output-dt9s8: Succeeded
-Saved solver logs into '/tmp/specfem.solver-4proc-16cores-32nex_20200730_114306.log'
+Create Job/save-solver-output
+Status of pod/save-solver-output-rsbcq: Succeeded
+Saved solver logs into '/tmp/specfem.solver-1proc-8cores-32nex_20200831_163809.log'
 All done!
-Done :)
 ```
 
 As mentioned in the log messages, the solver output logfile
 `output_solver.txt` is saved locally into
-`/tmp/specfem.solver-4proc-16cores-32nex_20200730_114306.log`.
+`/tmp/specfem.solver-4proc-16cores-32nex_20200831_163809.log`.
 
 Cleanup
 =======
@@ -134,7 +137,7 @@ workload objects must be deleted/recreated to rerun the application.
 A helper flag helps deleting the relevant resources:
 
 ```
-go run . -delete <flag>
+go run . [config name] -delete <flag>
 ```
 
 The delete `flag` can take the following values:
