@@ -62,7 +62,7 @@ func CreateSolverImage(app *specfemv1.SpecfemApp) error {
 		return err
 	}
 
-	builderNodeName, err := GetOrSetNodeTag("buildah.specfem.build", "")
+	builderNodeName, err := GetOrSetNodeTag("buildah.specfem.build")
 
 	if err != nil {
 		return errs.Wrap(err, "Could not find or define builder node ...")

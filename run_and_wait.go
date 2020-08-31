@@ -431,9 +431,52 @@ func getPushSecretName() (string, error) {
 	return "", errors.Wrap(err, "Cannot find Secret builder-dockercfg")
 }
 
-func GetOrSetNodeTag(tag, value string) (string, error) {
-	log.Printf("WARNING: hard-coded buider node name")
-	return "ip-10-0-143-138.ec2.internal", nil
+func GetOrSetNodeTag(label string) (string, error) {
+	nodes, err := client.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: label})
+	if err != nil {
+		return "", errors.Wrap(err,
+			fmt.Sprintf("Failed to search for nodes with label '%s'", label))
+	}
+
+	if len(nodes.Items) != 0 {
+		if len(nodes.Items) != 1 {
+			log.Println("Warning: found multiple nodes with label '%s'. Taking the first one.", label)
+		}
+
+		nodeName := nodes.Items[0].ObjectMeta.Name
+		
+		fmt.Printf("found node/%s with label '%s'\n", nodeName, label)
+
+		return nodeName, nil
+	}
+
+	nodes, err = client.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("Failed to search for nodes without label"))
+	}
+	
+	if len(nodes.Items) == 0 {
+		return "", errors.Wrap(err,
+			fmt.Sprintf("Could not find any node for labelling with '%s'", label))
+	}
+
+	node := nodes.Items[0]
+	nodeName := node.ObjectMeta.Name
+	log.Printf("Adding '%s' label to node '%s'", label, nodeName)
+
+	labelKV := strings.SplitN(label, "=", 2)
+	if len(labelKV) == 1 {
+		labelKV = append(labelKV,  "")
+	}
+	node.ObjectMeta.Labels[labelKV[0]] = labelKV[1]
+	
+	updatedNode, err := client.ClientSet.CoreV1().Nodes().Update(context.TODO(), &node, metav1.UpdateOptions{})
+	if err != nil || updatedNode  == nil {
+        return "", errors.Wrap(err, fmt.Sprintf("Failed to update node %s after adding label '%s'", nodeName, label))
+    }
+	
+	return nodeName, nil
 }
 
 func WaitMpiJob(mpijobName string) error {
