@@ -52,7 +52,6 @@ spec:
           nodeSelector: {{ range $key, $value := .App.Spec.Resources.WorkerNodeSelector }}
             {{ $key }}: {{ $value }}
 {{ end }}
-            buildah.specfem.build:
           volumes:
           - name: shared-volume
             persistentVolumeClaim:
