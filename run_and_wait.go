@@ -431,7 +431,7 @@ func getPushSecretName() (string, error) {
 	return "", errors.Wrap(err, "Cannot find Secret builder-dockercfg")
 }
 
-func GetOrSetNodeTag(label string) (string, error) {
+func GetOrSetWorkerNodeTag(label string) (string, error) {
 	nodes, err := client.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
 		LabelSelector: label})
 	if err != nil {
@@ -451,7 +451,9 @@ func GetOrSetNodeTag(label string) (string, error) {
 		return nodeName, nil
 	}
 
-	nodes, err = client.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodes, err = client.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: "node-role.kubernetes.io/worker"})
+	
 	if err != nil {
 		return "", errors.Wrap(err, fmt.Sprintf("Failed to search for nodes without label"))
 	}
