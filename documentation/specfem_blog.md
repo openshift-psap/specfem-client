@@ -14,12 +14,12 @@ its good scaling capabilities. It supports OpenMP multithreading,
 asynchronous MPI communications, and GPU acceleration (Cuda or
 OpenCL).
 
-This blog post presents the design and implementation of GO client
+This blog post presents the design and implementation of a GO client
 for building and running Specfem on OpenShift. Specfem has the
 particularity to require two stages of parallel execution: the mesher
 runs first, and generates a source-code header file (required to build
 the solver) plus a mesh database. Then the actual solver runs and
-performs the simulation. 
+performs the simulation.
 
 In the following, we go in more in depth into Specfem build steps and
 how they are carried out in OpenShift. See the figure below for an
@@ -30,16 +30,16 @@ overview of the build flow.
 Configuring Specfem
 ===================
 
-When we developed Specfem GO client, our goal was to benchmark the
-performance of our in-house OpenShift cluster. We chose to design a GO
-client (instead of an operator), so that we could control more
-interactively the configuration and execution of the application.
+Our goal with Specfem GO client is to benchmark the performance of our
+in-house OpenShift cluster. We chose to design a GO client (instead of
+an operator), so that we could control more interactively the
+configuration and execution of the application.
 
 For the configuration, we wanted to have control over four properties:
 1. the number of OpenMP cores
 2. the number of MPI processes
-3. the number of MPI processes per worker
-4. the Specfem problem size (`NEX`)
+3. the number of MPI processes per worker node
+4. Specfem problem size (`NEX`)
 
 So we designed [a custom Kubernetes datatype API] for storing these
 properties, along with a few other settings (source repository/branch,
@@ -55,7 +55,7 @@ metadata:
 spec:
   git:
     uri: https://gitlab.com/kpouget_psap/specfem3d_globe.git
-    ref: mockup
+    ref: default
   exec:
     nproc: 1
     ncore: 8
@@ -64,7 +64,7 @@ spec:
     nex: 32
   resources:
     useUbiImage: true
-    storageClassName: ""
+    storageClassName: "ocs-external-storagecluster-cephfs"
     workerNodeSelector:
       node-role.kubernetes.io/worker:
 ```
@@ -83,9 +83,9 @@ go run . [<name>]
 Building the Base Image
 -----------------------
 
-In this first stage of the build process, we build a base image, where
+In the first stage of the build process, we build a base image, where
 we install all the necessary packages. This is done with an OpenShift
-`BuildConfig`, where we inject:
+[`BuildConfig`], where we inject:
 1. a Dockerfile based on Red Hat [UBI] (requires a
 [container entitlement]) (otherwise based on Ubuntu)
 2. Specfem source repository URI and branch name
@@ -101,6 +101,7 @@ it fails, the execution is aborted; and if the build was already done
 previously, the execution continues without any modification or
 delay. This follows the idempotency principle of Kubernetes commands.
 
+[`BuildConfig`]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/01_buildconfig_base.yaml
 [UBI]: https://www.redhat.com/en/blog/introducing-red-hat-universal-base-image
 [container entitlement]: https://www.openshift.com/blog/how-to-use-entitled-image-builds-to-build-drivercontainers-with-ubi-on-openshift
 [injection of the configuration bits]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/create.go#L85
@@ -135,25 +136,25 @@ execution of the mesher. We do this with the help of Google's
 5. the script to launch on each MPI process (`/mnt/helper/run.sh`,
 mounted from `ConfigMap/run-mesher-sh` and created from [`run_mesher.sh`])
 
-The `MPIJob` execution will create a launcher pod running our base
-image (where OpenMPI is installed), and spawn the right number of
-worker pods on the worker nodes. Then the launcher pod will trigger
-the MPI execution that will spawn the MPI processes inside the worker
-pods, and Specfem mesher will be executed on the OpenShift cluster.
+The `MPIJob` execution creates a launcher pod running our base image
+(where OpenMPI is installed), and spawns the right number of worker
+pods on the worker nodes. Then the launcher pod kicks the OpenMPI
+execution that spawns the MPI processes inside the worker pods. And at
+last, Specfem mesher is executed on the OpenShift cluster.
 
-The last missing step to properly run Specfem mesher is a shared
-(`ReadWriteMany` access mode) filesystem. Each of the processes will
-store its mesh database in this volume, and the lead mesher process
-will write a header file (`values_from_mesher.h`) required to build
-the solver (more in this in the next section). The setup of this
-shared filesystem is out of the scope of this article and GO client,
-so the name of a compliant stage class should be set
+The last missing bit required to properly run Specfem mesher is a
+shared (`ReadWriteMany` access mode) filesystem. Each of the mesher
+processes store their mesh database in this volume, and the lead
+mesher process writes a header file (`values_from_mesher.h`) required
+to build the solver (more in this in the next section). The setup of
+this shared filesystem is out of the scope of this article and GO
+client, so the name of a compliant stage class should be set
 [in the configuration resource] (see [Amazon EFS] for instance).
 
-Finally, the `MPIJob` can be [mpi_created] and [mpi_awaited]. OpenMPI
-executions seem never to return a non-null error code, so we parse the
-launch pod logs to detect issues and abort the client execution if
-necessary.
+Finally, the `MPIJob` is [created][mpi_created] and
+[awaited][mpi_awaited]. As a side node, OpenMPI executions seem never
+to return a non-null error code, so we parse the launch pod logs to
+detect issues and abort the client execution if necessary.
 
 [Kubeflow MPI Operator]: https://github.com/kubeflow/mpi-operator
 [`MPIJob` resource]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/99_mpijob_meshersolver.yaml
@@ -167,7 +168,7 @@ Building the Solver Image
 -------------------------
 
 The second phase of Specfem build consists in building the solver,
-that will perform the actual simulation. However, the solver image
+which will perform the actual simulation. However, the solver image
 cannot be constructed as simply as other images, as it requires an
 input file from the mesher phase: `values_from_mesher.h`. In the
 previous section, we explained how this file, along with the MPI mesh
@@ -179,20 +180,20 @@ To by-pass this limitation, we have to find a way to retrieve this
 file while building the solver binary. We found three possible ways,
 and finally only kept the last one:
 
-1. sharing via an HTTP server. First we launch a helper pod
-with the shared volume. This pod launches a Python micro-HTTP
-server, and a `Service` and a `Route` expose the HTTP server at a
-fixed address. In the GO client, we monitor the pod logs, and when the
-HTTP server is ready, we launch the `BuildConfig`, where we retrieve
-the header via with a `curl` download. When the file has been shared,
-the pod cleanly terminates its execution.
+1. sharing via an HTTP server. First we launch a helper pod with the
+shared volume. This pod launches a Python micro-HTTP server, and a
+`Service`+`Route` expose the HTTP server at a fixed address. In the GO
+client, we monitor the pod logs, and when the HTTP server is ready, we
+launch the `BuildConfig`, where we retrieve the header file via with a
+`curl` download. When the file has been shared, the pod cleanly
+terminates its execution.
 
 2. sharing via a GIT repository. First we launch another helper pod
-with the shared volume. This pods receives from a `Secret` the
-credential to access a GIT repository, where it will push the file in
-a dedicated commit. Then the GO client launches a `BuildConfig` that
-will fetch the file from the GIT repository, and perhaps clean it up
-afterwards.
+with the shared volume. This pods receives a `Secret` with the
+credentials to access a GIT repository, where it will push the header
+file in a dedicated commit. Then the GO client launches a
+`BuildConfig` that will fetch the commit from the GIT repository, and
+perhaps clean it up afterwards.
 
 3. building the image from a custom `buildah` pod. If `BuildConfig`
 `buildah` scripts cannot have volumes, we can still design a custom
@@ -205,17 +206,18 @@ repository), so we kept only this one in the final version of the
 code.
 
 However, for `buildah` to work properly in a pod, it must be:
-1. configured to use `fuse` overlays (see
-[the `buildah` in a container blog post][buildah_blogpost] or our
-[Dockerfile][Dockerfile.mesher2solver] for more details), and
+1. configured to use `fuse` overlays (see the
+[`buildah`-in-a-container blog post][buildah_blogpost] or our
+[Dockerfile][Dockerfile.mesher2solver] for more details);
 2. the `DockerPushCfg` secret must be passed to the pod and
 transformed before `buildah` can use it to push to our `ImageStream`
-(see [OpenShift `buildah` documentation]).
-3. `fuse` module must be loaded in the host kernel. This is done with
-a [Node Tuning Operator] `tuned`
-[resource configuration][tuned_resource]. In addition, we tag of a
-node with the `buildah.specfem.build` label, so that the node with the
-`fuse` module actually runs the `buildah` pod.
+(see [OpenShift `buildah` documentation]);
+3. the `fuse` module must be loaded in the host kernel. This is done
+with a [Node Tuning Operator] `tuned`
+[resource configuration][tuned_resource]. In addition, we have to tag
+one of the worker nodes with the `buildah.specfem.build` label, to
+ensure that the node running the `buildah` pod is actually the one
+with `fuse` module.
 
 With all these steps in place, we can trigger the build of Specfem
 solver image, and simply wait for the pod execution completion.
@@ -233,13 +235,12 @@ Once Specfem solver image has been built, we can create a new `MPIJob`
 (see [Running the Mesher with MPI](running-the-mesher) for further
 details about the MPI execution) for running Specfem simulation. 
 
-The last action of the GO client after the solve execution is to run a
-helper pod that will help us retrieving Specfem solver output logs to
-the workstation. This simple pod receives the shared volume and `cat`s
-the content of the log. In the GO client, we wait for the completion
-of the pod, and save to disk the content of the pod's log, and we give
-a unique name to the file (eg,
+The last action of the GO client after the solver execution is to run
+a helper pod that retrieves Specfem solver output logs and saves it in
+the local workstation. This simple pod receives the shared volume and
+`cat`s the content of the log file. In the GO client, we wait for the
+completion of the pod, and save to disk the content of the pod's log,
+and we give a unique name to the file (eg,
 `specfem.solver-1proc-8cores-32nex_20200827_140133.log`) to simplify
-the benchmark of the Specfem execution on OpenShift that will follow
-this task.
+the benchmark of the Specfem execution on OpenShift.
 
