@@ -120,12 +120,14 @@ func RunMpiJob(app *specfemv1.SpecfemApp, stage string) error {
 	return nil
 }
 
-
-
 func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
 	jobName, err := CreateYamlResource(app, yamlSaveSolverOutputJob, "solver")
 	if err != nil {
 		return err
+	}
+	
+	if delete_mode {
+		CleanupJobPods(app, yamlSaveSolverOutputJob)
 	}
 
 	if jobName == "" {

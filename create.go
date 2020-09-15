@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"text/template"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	
 	errs "github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
 	"gitlab.com/kpouget_psap/specfem-client/yamlutil"
@@ -108,6 +110,34 @@ func createFromYamlManifest(yamlManifest string, templateFct YamlResourceTmpl, a
 	}
 	
 	return resType, obj, nil
+}
+
+func CleanupJobPods(app *specfemv1.SpecfemApp, yamlSpecFct YamlResourceSpec) error {
+	yamlManifest, templateFct := yamlSpecFct()
+	_, obj, err := createFromYamlManifest(yamlManifest, templateFct, app)
+	if err != nil {
+		return errs.Wrap(err, fmt.Sprintf("Cannot create the YAML resource from Yaml file '%+v'", yamlManifest))
+	}
+	jobName := obj.GetName()
+	pods, err := client.ClientSet.CoreV1().Pods(NAMESPACE).List(context.TODO(), 
+		metav1.ListOptions{LabelSelector: "job-name="+jobName})
+	if err != nil {
+		return errs.Wrap(err, fmt.Sprintf("Cannot list the pods associated with job/%s", jobName))
+	}
+	podResType := schema.GroupVersionResource{
+		Version: "v1",
+		Resource: "pods",
+	}
+
+	for _, pod := range pods.Items {
+		podName := pod.ObjectMeta.Name
+		fmt.Printf("delete job/%s --> pod/%s\n", jobName, podName)
+		err = client.Delete(podResType, podName)
+		if err != nil {
+			return errs.Wrap(err, fmt.Sprintf("Cannot delete pod/%s associated with job/%s", podName, jobName))
+		}
+	}
+	return nil
 }
 
 func CreateYamlResource(app *specfemv1.SpecfemApp, yamlSpecFct YamlResourceSpec, stage string) (string, error) {
