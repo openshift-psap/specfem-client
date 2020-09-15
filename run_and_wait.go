@@ -131,6 +131,7 @@ func WaitWithPodLogs(parentName string, podName string, search string, p_logs **
 		parent = fmt.Sprintf("(from %s)", parentName)
 	}
 
+Retry:
 	err = WaitPodRunning(podName)
 	if err != nil {
 		log.Printf("WaitPodRunning error: %s", err)
@@ -175,8 +176,10 @@ func WaitWithPodLogs(parentName string, podName string, search string, p_logs **
 			fmt.Printf("found '%s' in the logs...\n", search)
 			break
 		}
-
-		if err == io.EOF {
+		if err == io.ErrUnexpectedEOF {
+			fmt.Printf("'unexpected EOF' (certainly a timeout). Retrying ...\n")
+			goto Retry
+		} else if err == io.EOF {
 			if p_logs == nil {
 				fmt.Println()
 			}
