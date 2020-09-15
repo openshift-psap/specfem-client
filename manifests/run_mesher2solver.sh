@@ -18,7 +18,7 @@ buildah run --volume /mnt/shared:/mnt/shared:rw,z $cont bash -c '\
         echo "$(date) | Building the solver ..." >> /app/oc.build.log && \
         cd app &&  \
         mkdir obj && \
-        make spec && \
+        make spec > /dev/null && \
         rm obj/ -rf && \
         chmod 777 /app -R'
 
