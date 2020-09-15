@@ -16,8 +16,14 @@ spec:
     spec:
       containers:
       - command:
-        - cat
-        - /mnt/shared/OUTPUT_FILES/output_solver.txt
+        - bash 
+        - -c 
+        - "CACHE_NAME=cache/${SPECFEM_MPI_NPROC}proc/${SPECFEM_NEX}nex; cat /mnt/shared/${CACHE_NAME}/OUTPUT_FILES/output_solver.txt"
+        env:
+        - name: SPECFEM_NEX
+          value: "{{ .App.Spec.Specfem.Nex }}"
+        - name: SPECFEM_MPI_NPROC
+          value: "{{ .App.Spec.Exec.Nproc }}"
         image: docker.io/centos:7
         name: save-solver-output
         volumeMounts:

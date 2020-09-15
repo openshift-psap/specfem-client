@@ -16,7 +16,5 @@ RUN echo "$(date) | Building the mesher ..." >> /app/oc.build.log \
  && cd /app \
  && make mesh \
  && rm .git obj/ OUTPUT_FILES DATABASES_MPI -rf \
- && ln -s /mnt/shared/OUTPUT_FILES \
- && ln -s /mnt/shared/DATABASES_MPI \
  && chmod 777 /app -R
  

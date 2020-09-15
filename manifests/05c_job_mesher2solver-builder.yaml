@@ -3,7 +3,7 @@ kind: Pod
 metadata:
   labels:
     app: specfem
-  name: mesher2solver-builder
+  name: mesher2solver-builder-{{ .App.Spec.Exec.Nproc }}proc-{{ .App.Spec.Specfem.Nex }}nex
 spec:
   containers:
   - command:
@@ -13,6 +13,11 @@ spec:
     name: mesher2solver-builder
     securityContext:
       privileged: true
+    env:
+    - name: SPECFEM_NEX
+      value: "{{ .App.Spec.Specfem.Nex }}"
+    - name: SPECFEM_MPI_NPROC
+      value: "{{ .App.Spec.Exec.Nproc }}"
     volumeMounts:
     - mountPath: /mnt/shared/
       name: shared-volume

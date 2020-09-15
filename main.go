@@ -9,9 +9,7 @@ import (
 
 var DELETE_KEYS = []string{
 	"all",
-	"buildah",
-	"port",
-	"config",
+	"cache",
 	"mesher",
 	"solver",
 }

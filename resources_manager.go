@@ -39,6 +39,13 @@ func CreateBaseAndMesherImages(app *specfemv1.SpecfemApp) error {
 		return  errs.Wrap(err, "Cannot create resource for yamlImageStream")
 	}
 
+	if ! delete_mode {
+		if err := CheckImageTag("specfem:base", "all"); err == nil {
+			log.Printf("Found base image, don't build it.")
+			goto CheckMesher
+		}
+	}
+
 	if err := CreateAndWaitYamlBuildConfig(app, yamlBaseImageBuildConfig, "all"); err != nil {
 		return err
 	}
@@ -46,20 +53,31 @@ func CreateBaseAndMesherImages(app *specfemv1.SpecfemApp) error {
 	if err := CheckImageTag("specfem:base", "all"); err != nil {
 		return err
 	}
-	
-	if err := CreateAndWaitYamlBuildConfig(app, yamlMesherImageBuildConfig, "config"); err != nil {
+
+CheckMesher:
+	mesher_image := fmt.Sprintf("specfem:mesher-%dproc-%dnex", 
+		app.Spec.Exec.Nproc, app.Spec.Specfem.Nex)
+
+	if ! delete_mode {		
+		if err := CheckImageTag(mesher_image, "cache"); err == nil {
+			log.Println("Found mesher image, don't recreate it.")
+			return nil
+		}
+	}
+
+	if err := CreateAndWaitYamlBuildConfig(app, yamlMesherImageBuildConfig, "mesher"); err != nil {
 		return err
 	}
 
-	if err := CheckImageTag("specfem:mesher", "config"); err != nil {
+	if err := CheckImageTag(mesher_image, "cache"); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func CreateSolverImage(app *specfemv1.SpecfemApp) error {
-	if err:= CreateAndWaitYamlBuildConfig(app, newMesher2SolverHelperBuildConfig, "mesher"); err != nil {
+func CreateSolverImage(app *specfemv1.SpecfemApp, solver_image string) error {
+	if err:= CreateAndWaitYamlBuildConfig(app, newMesher2SolverHelperBuildConfig, "all"); err != nil {
 		return err
 	}
 
@@ -77,7 +95,7 @@ func CreateSolverImage(app *specfemv1.SpecfemApp) error {
 	}
 
 	if !delete_mode {
-		if err := CheckImageTag("specfem:solver", "mesher"); err == nil {
+		if err := CheckImageTag(solver_image, "cache"); err == nil {
 			log.Println("Found solver image, don't recreate it.")
 			return nil
 		}
@@ -94,12 +112,14 @@ func CreateSolverImage(app *specfemv1.SpecfemApp) error {
 	}
 
 	if podName != "" {
-		if err := WaitWithPodLogs("", podName, "", nil); err != nil {
+		var logs *string // ignore logs if everything's ok
+		if err := WaitWithPodLogs("", podName, "", &logs); err != nil {
+			fmt.Println(logs)
 			return err
 		}
 	}
 
-	if err := CheckImageTag("specfem:solver", "mesher"); err != nil {
+	if err := CheckImageTag(solver_image, "cache"); err != nil {
 		return err
 	}
 	
@@ -194,6 +214,17 @@ func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
 }
 
 func RunSpecfem(app *specfemv1.SpecfemApp) error {
+	solver_image := fmt.Sprintf("specfem:solver-%dproc-%dnex", 
+		app.Spec.Exec.Nproc, app.Spec.Specfem.Nex)
+
+
+	if ! delete_mode {
+		if err := CheckImageTag(solver_image, "cache"); err == nil {
+			log.Printf("Found solver image, skip mesher.")
+			goto RunSolver
+		}
+	}
+
 	if err := CreateBaseAndMesherImages(app); err != nil {
 		return err
 	}
@@ -202,28 +233,23 @@ func RunSpecfem(app *specfemv1.SpecfemApp) error {
 		return err
 	}
 
-	if _, err := CreateYamlResource(app, yamlPVC, "all"); err != nil {
+	if _, err := CreateYamlResource(app, yamlPVC, "cache"); err != nil {
 		return err
-	}
-	
-	if app.Spec.Resources.NetworkType == specfemv1.NetworkTypeMultus {
-		if _, err := CreateYamlResource(app, yamlMultusNetwork, "all"); err != nil {
-			return err
-		}
 	}
 
 	if err := RunMesherSolver(app, "mesher"); err != nil {
 		return err
 	}
 
-	if err := CreateSolverImage(app); err != nil {
+	if err := CreateSolverImage(app, solver_image); err != nil {
 		return err
 	}
 
-	if err := CheckImageTag("specfem:solver", "mesher"); err != nil {
+	if err := CheckImageTag(solver_image, "cache"); err != nil {
 		return err
 	}
 
+RunSolver:
 	if _, err := CreateYamlResource(app, yamlSolverScriptCM, "all"); err != nil {
 		return err
 	}

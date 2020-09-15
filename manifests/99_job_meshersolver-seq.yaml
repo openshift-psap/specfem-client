@@ -30,6 +30,10 @@ spec:
           value: "{{ .App.Spec.Exec.Ncore }}"
         - name: SPECFEM_RELY_ON_SHARED_FS
           value: "{{ .App.Spec.Resources.RelyOnSharedFS }}"
+        - name: SPECFEM_NEX
+          value: "{{ .App.Spec.Specfem.Nex }}"
+        - name: SPECFEM_MPI_NPROC
+          value: "{{ .App.Spec.Exec.Nproc }}"
         volumeMounts:
         - mountPath: /mnt/shared/
           name: shared-volume

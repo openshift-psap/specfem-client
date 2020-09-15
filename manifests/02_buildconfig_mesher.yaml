@@ -3,12 +3,12 @@ apiVersion: build.openshift.io/v1
 metadata:
   labels:
     app: specfem
-  name: specfem-mesher-image
+  name: specfem-mesher-image-{{ .App.Spec.Exec.Nproc }}proc-{{ .App.Spec.Specfem.Nex }}nex
 spec:
   output:
     to:
       kind: ImageStreamTag
-      name: specfem:mesher
+      name: specfem:mesher-{{ .App.Spec.Exec.Nproc }}proc-{{ .App.Spec.Specfem.Nex }}nex
   runPolicy: Serial
   source:
     dockerfile: |

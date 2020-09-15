@@ -1,10 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
-		
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
 )
 
@@ -35,6 +36,7 @@ type TemplateCfg struct {
 	}
 	MesherSolver struct {
 		Stage string
+		Image string
 	}
 }
 
@@ -116,6 +118,9 @@ func yamlRunMpiMesherSolverJob(stage string) YamlResourceSpec {
 		return "99_mpijob_meshersolver.yaml", func(app *specfemv1.SpecfemApp) *TemplateCfg {
 			cfg := &TemplateCfg{}
 			cfg.MesherSolver.Stage = stage
+			cfg.MesherSolver.Image += fmt.Sprintf("%s-%dproc-%dnex", 
+				stage, app.Spec.Exec.Nproc, app.Spec.Specfem.Nex)
+
 			return cfg
 		}
 	}

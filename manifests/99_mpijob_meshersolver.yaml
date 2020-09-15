@@ -60,7 +60,11 @@ spec:
               value: "{{ .App.Spec.Exec.Ncore }}"
             - name: SPECFEM_RELY_ON_SHARED_FS
               value: "{{ .App.Spec.Resources.RelyOnSharedFS }}"
-            image: image-registry.openshift-image-registry.svc:5000/{{ .App.ObjectMeta.Namespace }}/specfem:{{ .Cfg.MesherSolver.Stage }}
+            - name: SPECFEM_NEX
+              value: "{{ .App.Spec.Specfem.Nex }}"
+            - name: SPECFEM_MPI_NPROC
+              value: "{{ .App.Spec.Exec.Nproc }}"
+            image: image-registry.openshift-image-registry.svc:5000/{{ .App.ObjectMeta.Namespace }}/specfem:{{ .Cfg.MesherSolver.Image }}
             imagePullPolicy: Always
 {{ if eq .App.Spec.Resources.NetworkType "HostNetwork" }}
             hostNetwork: true
