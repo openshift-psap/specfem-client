@@ -1271,6 +1271,12 @@ gitlab.com/kpouget_psap/specfem-api v0.0.0-20200827080831-c3dd290b6b11 h1:GFqMDY
 gitlab.com/kpouget_psap/specfem-api v0.0.0-20200827080831-c3dd290b6b11/go.mod h1:EjMKTYen/JSQPs3gdD7zq6CFOmFyd1MpXM408+3FzdI=
 gitlab.com/kpouget_psap/specfem-api v0.0.0-20200828125509-09dd060122a8 h1:QsmgmEBWLNJsL529YyyxbFPFkE5uGU1kbuwle0eUEo0=
 gitlab.com/kpouget_psap/specfem-api v0.0.0-20200828125509-09dd060122a8/go.mod h1:EjMKTYen/JSQPs3gdD7zq6CFOmFyd1MpXM408+3FzdI=
+gitlab.com/kpouget_psap/specfem-api v0.0.0-20200909101030-ea797e271c01 h1:fYuu5rDpvjgahXdj66K3mGpf1uC6XoaiPMHzIrndDdQ=
+gitlab.com/kpouget_psap/specfem-api v0.0.0-20200909101030-ea797e271c01/go.mod h1:EjMKTYen/JSQPs3gdD7zq6CFOmFyd1MpXM408+3FzdI=
+gitlab.com/kpouget_psap/specfem-api v0.0.0-20200915072735-56a993d4f360 h1:DsixMk9GvPahjqoGwwMKMgRDBuXSfq6gqsbBbhI9aas=
+gitlab.com/kpouget_psap/specfem-api v0.0.0-20200915072735-56a993d4f360/go.mod h1:EjMKTYen/JSQPs3gdD7zq6CFOmFyd1MpXM408+3FzdI=
+gitlab.com/kpouget_psap/specfem-api v0.0.0-20200915073429-4d164576e5c6 h1:R3ni0OWkL13UuETboNX1F6Y2AvQ9+niRXELWtQoMTVs=
+gitlab.com/kpouget_psap/specfem-api v0.0.0-20200915073429-4d164576e5c6/go.mod h1:EjMKTYen/JSQPs3gdD7zq6CFOmFyd1MpXM408+3FzdI=
 gitlab.com/kpouget_psap/specfem-apis v0.0.0-20200730122421-0f25c1a2d247 h1:JhospKcNicO//LnbUbNT//HoDigObHkmuiL306EfwMQ=
 gitlab.com/kpouget_psap/specfem-operator v0.0.0-20200713144602-63911bc1ecec h1:oG64VYzOPGBDMNfMzpZvY9Jl9ucwPYMnOTnnH+ZtXho=
 gitlab.com/kpouget_psap/specfem-operator v0.0.0-20200713144602-63911bc1ecec/go.mod h1:mDe/WyQez/DUb+J9Bnr4BQp2/N8+bFjd3Kjgy0nfYWM=
