@@ -6,15 +6,16 @@ metadata:
 spec:
   git:
     uri: https://gitlab.com/kpouget_psap/specfem3d_globe.git
-    ref: mockup
+    ref: master
   exec:
-    nproc: 1
-    ncore: 8
-    slotsPerWorker: 1
+    nproc: 16
+    ncore: 4
+    slotsPerWorker: 2
   specfem:
-    nex: 32
+    nex: 128
   resources:
     useUbiImage: true
-    storageClassName: ""
+    storageClassName: "ocs-external-storagecluster-cephfs"
     workerNodeSelector:
       node-role.kubernetes.io/worker:
+    relyOnSharedFS: false
