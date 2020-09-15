@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -105,7 +106,36 @@ func CreateSolverImage(app *specfemv1.SpecfemApp) error {
 	return nil
 }
 
+func HasMpiPods(app *specfemv1.SpecfemApp, stage string) (int, error) {
+	pods, err := client.ClientSet.CoreV1().Pods(NAMESPACE).List(context.TODO(), 
+		metav1.ListOptions{LabelSelector: "mpi_job_name=mpi-"+stage})
+
+	if err != nil {
+		return 0, err
+	}
+
+	return len(pods.Items), nil
+}
+
 func RunMpiJob(app *specfemv1.SpecfemApp, stage string) error {
+	if delete_mode {
+		goto skip_pod_check
+	}
+	for {
+		pod_cnt, err := HasMpiPods(app, stage)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("found %d pods from previous mpijob/mpi-%s ...\n", pod_cnt, stage)
+		if pod_cnt == 0 {
+			break
+		}
+
+		time.Sleep(2 * time.Second)
+		// loop
+	}
+
+skip_pod_check:
 	mpijobName, err := CreateYamlResource(app, yamlRunMpiMesherSolverJob(stage), stage)
 	if err != nil || mpijobName == "" {
 		return err
