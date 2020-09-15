@@ -125,7 +125,12 @@ func fetchManifestsFromPath(path string) (map[string]string, error) {
 	
 	for _, filename := range filenames {
 		buffer, err := ioutil.ReadFile(filename)
+		
 		if err != nil {
+			// ignore IsNotExist errors...this is expected
+			if os.IsNotExist(err) {
+				continue
+			}
 			return nil, errs.Wrap(err, fmt.Sprintf("Failed to read manifest '%s'", filename))
 		}
 		_, fname := filepath.Split(filename)
