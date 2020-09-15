@@ -206,6 +206,12 @@ func RunSpecfem(app *specfemv1.SpecfemApp) error {
 		return err
 	}
 	
+	if app.Spec.Resources.NetworkType == specfemv1.NetworkTypeMultus {
+		if _, err := CreateYamlResource(app, yamlMultusNetwork, "all"); err != nil {
+			return err
+		}
+	}
+
 	if err := RunMesherSolver(app, "mesher"); err != nil {
 		return err
 	}

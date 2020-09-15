@@ -9,6 +9,11 @@ spec:
     Launcher:
       replicas: 1
       template:
+{{ if eq .App.Spec.Resources.NetworkType "Multus" }}
+        metadata:
+          annotations:
+            k8s.v1.cni.cncf.io/networks: multus-network
+{{ end }}
         spec:
           containers:
           - name: mpi-launcher
@@ -27,16 +32,26 @@ spec:
             - -mca
             - btl
             - ^openib
+{{ if eq .App.Spec.Resources.NetworkType "Multus" }}
+            - -mca
+            - btl_tcp_if_include
+            - net1
+{{ end }}
             - bash
             - -c
             - /mnt/helper/run.sh
             image: image-registry.openshift-image-registry.svc:5000/{{ .App.ObjectMeta.Namespace }}/specfem:base
+{{ if eq .App.Spec.Resources.NetworkType "HostNetwork" }}
+            hostNetwork: true
+{{ end }}
     Worker:
       replicas: {{ .App.Spec.Exec.Nproc }}
       template:
+{{ if eq .App.Spec.Resources.NetworkType "Multus" }}
         metadata:
           annotations:
-            k8s.v1.cni.cncf.io/networks: mpi-network
+            k8s.v1.cni.cncf.io/networks: multus-network
+{{ end }}
         spec:
           containers:
           - name: mpi-worker
@@ -47,6 +62,9 @@ spec:
               value: "{{ .App.Spec.Resources.RelyOnSharedFS }}"
             image: image-registry.openshift-image-registry.svc:5000/{{ .App.ObjectMeta.Namespace }}/specfem:{{ .Cfg.MesherSolver.Stage }}
             imagePullPolicy: Always
+{{ if eq .App.Spec.Resources.NetworkType "HostNetwork" }}
+            hostNetwork: true
+{{ end }}
             volumeMounts:
             - mountPath: /mnt/shared/
               name: shared-volume
