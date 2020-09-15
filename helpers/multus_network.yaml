@@ -1,0 +1,14 @@
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: multus-network
+spec:
+  config: '{
+   "cniVersion":"0.3.1",
+   "type": "macvlan",
+   "master": "enp1s0f1",
+   "ipam": {
+      "type": "whereabouts",
+      "range": "11.10.0.0/24"
+   }
+  }'
