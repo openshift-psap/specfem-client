@@ -34,12 +34,17 @@ spec:
     Worker:
       replicas: {{ .App.Spec.Exec.Nproc }}
       template:
+        metadata:
+          annotations:
+            k8s.v1.cni.cncf.io/networks: mpi-network
         spec:
           containers:
           - name: mpi-worker
             env:
             - name: OMP_NUM_THREADS
               value: "{{ .App.Spec.Exec.Ncore }}"
+            - name: SPECFEM_RELY_ON_SHARED_FS
+              value: "{{ .App.Spec.Resources.RelyOnSharedFS }}"
             image: image-registry.openshift-image-registry.svc:5000/{{ .App.ObjectMeta.Namespace }}/specfem:{{ .Cfg.MesherSolver.Stage }}
             imagePullPolicy: Always
             volumeMounts:
