@@ -202,7 +202,7 @@ func RunSpecfem(app *specfemv1.SpecfemApp) error {
 		return err
 	}
 
-	if _, err := CreateYamlResource(app, yamlPVC, "config"); err != nil {
+	if _, err := CreateYamlResource(app, yamlPVC, "all"); err != nil {
 		return err
 	}
 	
