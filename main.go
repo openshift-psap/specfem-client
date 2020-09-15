@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"os"
 	
 	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
 )
@@ -21,9 +20,6 @@ var delete_mode = false
 var to_delete = map[string]bool{}
 
 func initDelete() {
-	var flag_delete = flag.String("delete", "", "solver,mesher,config,all|none")
-	flag.Parse()
-
 	for _, key := range DELETE_KEYS {
 		delete_it := (key == *flag_delete) || delete_mode
 		to_delete[key] = delete_it 
@@ -45,11 +41,13 @@ func initDelete() {
 	}
 }
 
-
+var flag_delete = flag.String("delete", "", "solver,mesher,config,all|none")
+var flag_cfg = flag.String("config", "", "name of the config file (in config/[name].yaml)")
 
 func main() {
 	var err error
-	
+	flag.Parse()
+
 	initDelete()
 
 	if err = InitClient(); err != nil {
@@ -61,10 +59,10 @@ func main() {
 	}
 	
 	var configName string
-	if len(os.Args) > 1 && os.Args[1][0] != '-' {
-		configName = os.Args[1]
-	} else {
+	if *flag_cfg == "" {
 		configName = "specfem-sample"
+	} else {
+		configName = *flag_cfg
 	}
 	
 	var app *specfemv1.SpecfemApp
