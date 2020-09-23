@@ -21,9 +21,9 @@ runs first, and generates a source-code header file (required to build
 the solver) plus a mesh database. Then the actual solver runs and
 performs the simulation.
 
-In the following, we go in more in depth into Specfem build steps and
-how they are carried out in OpenShift. See the figure below for an
-overview of the build flow.
+In the following, we go in depth into Specfem build steps and how they
+are carried out in OpenShift. See the figure below for an overview of
+the build flow.
 
 ![Specfem client control flow](control-flow.png)
 
@@ -71,7 +71,8 @@ spec:
 
 In the GO client, the configuration is read from the
 `config/<name>.yaml` when the application is launched (the default
-value is `specfem-sample` for loading [this document](specfem-sample)):
+value is `specfem-sample` for loading
+[this configuration file](specfem-sample)):
 
 ```
 go run . [<name>]
@@ -83,17 +84,18 @@ go run . [<name>]
 Building the Base Image
 -----------------------
 
-In the first stage of the build process, we build a base image, where
-we install all the necessary packages. This is done with an OpenShift
-[`BuildConfig`], where we inject:
+In the first stage of the build process, we build the base image,
+where we install all the necessary packages. This is done with an
+OpenShift [`BuildConfig`], where we inject:
 1. a Dockerfile based on Red Hat [UBI] (requires a
 [container entitlement]) (otherwise based on Ubuntu)
 2. Specfem source repository URI and branch name
 
 The [injection of the configuration bits] is done with the help of GO
-templates, similarly to what we can find the Red Hat's
+templates, similarly to what we can find in Red Hat's
 [Special Resource Operator]. This design allows a clear separation
-between the resource specifications and the GO code driving the execution.
+between the resource specifications and the GO code driving the
+execution.
 
 When the [base-image `BuildConfig`] has been [created][base_bc_created],
 we [wait][base_bc_wait] for the successful completion of the build. If
@@ -117,7 +119,7 @@ Then the [mesher image is built similarly][mesher_build], with Specfem
 problem size (`Nex`) and number of processes injected in the template
 and passed to the [Dockerfile][mesher_dockerfile] via environment
 variables. We construct the mesher image by configuring Specfem and
-building its mesher binary from our base image.
+building its mesher binary on top our base image.
 
 [mesher_build]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/02_buildconfig_mesher.yaml
 [mesher_dockerfile]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/Dockerfile.mesher
@@ -143,13 +145,14 @@ execution that spawns the MPI processes inside the worker pods. And at
 last, Specfem mesher is executed on the OpenShift cluster.
 
 The last missing bit required to properly run Specfem mesher is a
-shared (`ReadWriteMany` access mode) filesystem. Each of the mesher
+shared filesystem (`ReadWriteMany` access mode). Each of the mesher
 processes store their mesh database in this volume, and the lead
 mesher process writes a header file (`values_from_mesher.h`) required
 to build the solver (more in this in the next section). The setup of
-this shared filesystem is out of the scope of this article and GO
-client, so the name of a compliant stage class should be set
-[in the configuration resource] (see [Amazon EFS] for instance).
+this shared filesystem is out of the scope of this article. In our GO
+client, the name of a compliant stage class should be set
+[in the configuration resource] (see [Red Hat OCS] or [Amazon EFS] for
+instance).
 
 Finally, the `MPIJob` is [created][mpi_created] and
 [awaited][mpi_awaited]. As a side node, OpenMPI executions seem never
@@ -160,6 +163,7 @@ detect issues and abort the client execution if necessary.
 [`MPIJob` resource]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/99_mpijob_meshersolver.yaml
 [`run_mesher.sh`]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/run_mesher.sh
 [in the configuration resource]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/config/specfem-sample.yaml#L18
+[Red Hat OCS]: https://www.openshift.com/blog/introducing-openshift-container-storage-4-2
 [Amazon EFS]: https://docs.openshift.com/container-platform/4.5/storage/persistent_storage/persistent-storage-efs.html
 [mpi_created]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/resources_manager.go#L22
 [mpi_awaited]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/run_and_wait.go#L439
@@ -176,9 +180,9 @@ database, was saved in a shared volume. But as of OpenShift 4.5, it is
 unfortunately not possible to include persistent volumes in the
 `BuildConfig`.
 
-To by-pass this limitation, we have to find a way to retrieve this
-file while building the solver binary. We found three possible ways,
-and finally only kept the last one:
+To by-pass this limitation, we have to find a solution to retrieve
+this file while building the solver binary. We found three possible
+ways, and finally only kept the last one:
 
 1. sharing via an HTTP server. First we launch a helper pod with the
 shared volume. This pod launches a Python micro-HTTP server, and a
