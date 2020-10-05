@@ -25,10 +25,23 @@ func checkSpecfemConfig(app *specfemv1.SpecfemApp) error {
 	}
 
 	nex := app.Spec.Specfem.Nex
+
+	if nex % 16 != 0 {
+		return fmt.Errorf("NEX(=%d) must be a multiple of 16", nex)
+	}
+
 	if nex % (8*actual_nproc_val) != 0 {
 		return fmt.Errorf("NEX(=%d) must be a multiple of 8*NPROC(=%d)", nex, actual_nproc_val)
 	}
+ 
+	nproc := app.Spec.Exec.Nproc
+	slots := app.Spec.Exec.SlotsPerWorker
 	
+	if nproc % slots != 0 {
+		return fmt.Errorf("NProc(=%d) must be a multiple of SlotsPerWorker(=%d)", 
+			nproc, slots)
+	}
+
 	return nil
 }
 
