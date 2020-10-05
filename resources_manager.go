@@ -126,9 +126,9 @@ func CreateSolverImage(app *specfemv1.SpecfemApp, solver_image string) error {
 	return nil
 }
 
-func HasMpiPods(app *specfemv1.SpecfemApp, stage string) (int, error) {
+func HasMpiWorkerPods(app *specfemv1.SpecfemApp, stage string) (int, error) {
 	pods, err := client.ClientSet.CoreV1().Pods(NAMESPACE).List(context.TODO(), 
-		metav1.ListOptions{LabelSelector: "mpi_job_name=mpi-"+stage})
+		metav1.ListOptions{LabelSelector: "mpi_role_type=worker,mpi_job_name=mpi-"+stage})
 
 	if err != nil {
 		return 0, err
@@ -142,11 +142,12 @@ func RunMpiJob(app *specfemv1.SpecfemApp, stage string) error {
 		goto skip_pod_check
 	}
 	for {
-		pod_cnt, err := HasMpiPods(app, stage)
+		pod_cnt, err := HasMpiWorkerPods(app, stage)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("found %d pods from previous mpijob/mpi-%s ...\n", pod_cnt, stage)
+		
+		fmt.Printf("found %d worker pods from previous mpijob/mpi-%s ...\n", pod_cnt, stage)
 		if pod_cnt == 0 {
 			break
 		}
