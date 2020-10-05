@@ -45,7 +45,7 @@ spec:
             hostNetwork: true
 {{ end }}
     Worker:
-      replicas: {{ .App.Spec.Exec.Nproc }}
+      replicas: {{ .Cfg.MesherSolver.Nreplicas  }}
       template:
 {{ if eq .App.Spec.Resources.NetworkType "Multus" }}
         metadata:

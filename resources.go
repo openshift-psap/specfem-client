@@ -37,6 +37,7 @@ type TemplateCfg struct {
 	MesherSolver struct {
 		Stage string
 		Image string
+		Nreplicas int
 	}
 }
 
@@ -120,6 +121,8 @@ func yamlRunMpiMesherSolverJob(stage string) YamlResourceSpec {
 			cfg.MesherSolver.Stage = stage
 			cfg.MesherSolver.Image += fmt.Sprintf("%s-%dproc-%dnex", 
 				stage, app.Spec.Exec.Nproc, app.Spec.Specfem.Nex)
+
+			cfg.MesherSolver.Nreplicas = int(app.Spec.Exec.Nproc/app.Spec.Exec.SlotsPerWorker)
 
 			return cfg
 		}
