@@ -85,8 +85,8 @@ go run . [<name>]
 Building the Base Image
 -----------------------
 
-In the first stage of the build process, we build the base image,
-where we install all the necessary packages. This is done with an
+In the first stage of the build process, the Go client builds the base
+image, which contains all the necessary packages. This is done with an
 OpenShift [`BuildConfig`], where we inject:
 1. a Containerfile based on Red Hat [UBI] (requires a
 [container entitlement]) (otherwise based on Ubuntu)
@@ -203,7 +203,7 @@ perhaps clean it up afterwards.
 3. building the image from a custom `buildah` Pod. If `BuildConfig`
 `buildah` scripts cannot have volumes, we can still design a custom
 `Pod` that will receive the shared volume, run `buildah` and push the
-image to the `ImageStream`. 
+image to the `ImageStream`.
 
 This last sharing possibility is the most flexible (no coordination as
 in with the HTTP-sharing, no external storage as with the Git
@@ -238,7 +238,7 @@ Running the Solver and Saving Output Logs
 
 Once Specfem solver image has been built, we can create a new `MPIJob`
 (see [Running the Mesher with MPI](running-the-mesher) for further
-details about the MPI execution) for running Specfem simulation. 
+details about the MPI execution) for running Specfem simulation.
 
 The last action of the Go client after the solver execution is to run
 a helper Pod that retrieves Specfem solver output logs and saves it in
@@ -248,4 +248,3 @@ completion of the Pod, and save to disk the content of the Pod's log,
 and we give a unique name to the file (eg,
 `specfem.solver-1proc-8cores-32nex_20200827_140133.log`) to simplify
 the benchmark of the Specfem execution on OpenShift.
-
