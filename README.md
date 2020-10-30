@@ -26,11 +26,11 @@ Requirements
 * To build the `UBI8` base image, the cluster must be correctly
   [entitled](https://www.openshift.com/blog/how-to-use-entitled-image-builds-to-build-drivercontainers-with-ubi-on-openshift)
   (alternatively, the
-  [flag](https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/config/specfem-sample.yaml#L17)
+  [flag](https://github.com/openshift-psap/specfem-client/blob/v1.0/config/specfem-sample.yaml#L17)
   `spec.resources.useUbiImage` can be set to `false` to use the
   `ubuntu:eon` as base image).
 * A `ReadWriteMany` file-system must be available (see
-  [`spec.resources.useUbiImage`](https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/config/specfem-sample.yaml#L18)
+  [`spec.resources.useUbiImage`](https://github.com/openshift-psap/specfem-client/blob/v1.0/config/specfem-sample.yaml#L18)
   to configure the storage-class name) for the storage-class
   configuration). [Amazon EFS](https://aws.amazon.com/efs/) provides
   such a file-system.
@@ -53,7 +53,7 @@ Configuration
 The configuration file must be stored in the `config` directory, and
 passed as the first command-line argument (without `.yaml`
 extension). If no argument is provided,
-[`config/specfem-sample.yaml`](https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/config/specfem-sample.yaml)
+[`config/specfem-sample.yaml`](https://github.com/openshift-psap/specfem-client/blob/master/config/specfem-sample.yaml)
 is used:
 
 ```
@@ -64,8 +64,8 @@ metadata:
   namespace: specfem
 spec:
   git:
-    uri: https://gitlab.com/kpouget_psap/specfem3d_globe.git
-    ref: mockup
+    uri: https://github.com/geodynamics/specfem3d_globe.git
+    ref: fecb1af5
   exec:
     nproc: 1
     ncore: 8

@@ -9,7 +9,7 @@ import (
 	
 	errs "github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
+	specfemv1 "github.com/openshift-psap/specfem-client-api/pkg/apis/specfem/v1alpha1"
 )
 
 func RunMesherSolver(app *specfemv1.SpecfemApp, stage string) error {

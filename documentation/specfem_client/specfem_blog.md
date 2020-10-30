@@ -55,8 +55,8 @@ metadata:
   namespace: specfem
 spec:
   git:
-    uri: https://gitlab.com/kpouget_psap/specfem3d_globe.git
-    ref: default
+    uri: https://github.com/geodynamics/specfem3d_globe.git
+    ref: fecb1af5
   exec:
     nproc: 1
     ncore: 8
@@ -79,8 +79,8 @@ value is `specfem-sample` for loading
 go run . [<name>]
 ```
 
-[a custom Kubernetes datatype API]: https://gitlab.com/kpouget_psap/specfem-api/-/blob/c3dd290b6b1108ed7da87e6631b5c932cadb169c/pkg/apis/specfem/v1alpha1/specfemapp_types.go
-[specfem-sample]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/6af449d47f8bff9aeeda8e103c19c1880b0c3056/config/specfem-sample.yaml
+[a custom Kubernetes datatype API]: https://github.com/openshift-psap/specfem-client-api/blob/v1.0/pkg/apis/specfem/v1alpha1/specfemapp_types.go
+[specfem-sample]: https://github.com/openshift-psap/specfem-client/blob/v1.0/config/specfem-sample.yaml
 
 Building the Base Image
 -----------------------
@@ -104,14 +104,14 @@ it fails, the execution is aborted; and if the build was already done
 previously, the execution continues without any modification or
 delay. This follows the idempotency principle of Kubernetes commands.
 
-[`BuildConfig`]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/01_buildconfig_base.yaml
+[`BuildConfig`]: https://github.com/openshift-psap/specfem-client/blob/v1.0/manifests/01_buildconfig_base.yaml
 [UBI]: https://www.redhat.com/en/blog/introducing-red-hat-universal-base-image
 [container entitlement]: https://www.openshift.com/blog/how-to-use-entitled-image-builds-to-build-drivercontainers-with-ubi-on-openshift
-[injection of the configuration bits]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/create.go#L85
+[injection of the configuration bits]: https://github.com/openshift-psap/specfem-client/blob/v1.0/create.go#L85
 [Special Resource Operator]: https://github.com/openshift-psap/special-resource-operator/blob/659da39/pkg/controller/specialresource/resources.go#L205
-[base-image `BuildConfig`]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/01_buildconfig_base.yaml
-[base_bc_created]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/resources_manager.go#L37
-[base_bc_wait]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/run_and_wait.go#L227
+[base-image `BuildConfig`]: https://github.com/openshift-psap/specfem-client/blob/v1.0/manifests/01_buildconfig_base.yaml
+[base_bc_created]: https://github.com/openshift-psap/specfem-client/blob/v1.0/resources_manager.go#L37
+[base_bc_wait]: https://github.com/openshift-psap/specfem-client/blob/v1.0/run_and_wait.go#L227
 
 Building the Mesher image
 -------------------------
@@ -122,8 +122,8 @@ template and passed to the [Dockerfile][mesher_dockerfile] via
 environment variables. We construct the mesher image by configuring
 Specfem and building its mesher binary on top of our base image.
 
-[mesher_build]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/02_buildconfig_mesher.yaml
-[mesher_dockerfile]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/Dockerfile.mesher
+[mesher_build]: https://github.com/openshift-psap/specfem-client/blob/v1.0/manifests/02_buildconfig_mesher.yaml
+[mesher_dockerfile]: https://github.com/openshift-psap/specfem-client/blob/v1.0/manifests/Dockerfile.mesher
 
 Running the Mesher with MPI
 ---------------------------
@@ -161,13 +161,13 @@ to return a non-null error code, so we parse the launch Pod logs to
 detect issues and abort the client execution if necessary.
 
 [Kubeflow MPI Operator]: https://github.com/kubeflow/mpi-operator
-[`MPIJob` resource]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/99_mpijob_meshersolver.yaml
-[`run_mesher.sh`]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/run_mesher.sh
-[in the configuration resource]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/config/specfem-sample.yaml#L18
+[`MPIJob` resource]: https://github.com/openshift-psap/specfem-client/blob/v1.0/manifests/99_mpijob_meshersolver.yaml
+[`run_mesher.sh`]: https://github.com/openshift-psap/specfem-client/blob/v1.0/manifests/run_mesher.sh
+[in the configuration resource]: https://github.com/openshift-psap/specfem-client/blob/v1.0/config/specfem-sample.yaml#L18
 [Red Hat OCS]: https://www.openshift.com/blog/introducing-openshift-container-storage-4-2
 [Amazon EFS]: https://docs.openshift.com/container-platform/4.5/storage/persistent_storage/persistent-storage-efs.html
-[mpi_created]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/resources_manager.go#L22
-[mpi_awaited]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/run_and_wait.go#L439
+[mpi_created]: https://github.com/openshift-psap/specfem-client/blob/v1.0/resources_manager.go#L22
+[mpi_awaited]: https://github.com/openshift-psap/specfem-client/blob/v1.0/run_and_wait.go#L439
 
 Building the Solver Image
 -------------------------
@@ -229,9 +229,9 @@ solver image and simply wait for the Pod execution completion.
 
 [OpenShift `buildah` documentation]: https://docs.openshift.com/container-platform/4.5/builds/custom-builds-buildah.html
 [buildah_blogpost]: https://developers.redhat.com/blog/2019/08/14/best-practices-for-running-buildah-in-a-container/
-[Dockerfile.mesher2solver]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/Dockerfile.mesher2solver_helper
+[Dockerfile.mesher2solver]: https://github.com/openshift-psap/specfem-client/blob/v1.0/manifests/Dockerfile.mesher2solver_helper
 [Node Tuning Operator]: https://docs.openshift.com/container-platform/4.5/scalability_and_performance/using-node-tuning-operator.html
-[tuned_resource]: https://gitlab.com/kpouget_psap/specfem-client/-/blob/master/manifests/05b_tuned_fuse-module.yaml
+[tuned_resource]: https://github.com/openshift-psap/specfem-client/blob/v1.0/manifests/05b_tuned_fuse-module.yaml
 
 Running the Solver and Saving Output Logs
 -----------------------------------------

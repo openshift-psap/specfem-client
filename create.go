@@ -12,8 +12,9 @@ import (
 	errs "github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	specfemv1 "gitlab.com/kpouget_psap/specfem-api/pkg/apis/specfem/v1alpha1"
-	"gitlab.com/kpouget_psap/specfem-client/yamlutil"
+	specfemv1 "github.com/openshift-psap/specfem-client-api/pkg/apis/specfem/v1alpha1"
+	"github.com/openshift-psap/specfem-client/yamlutil"
+
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/api/errors"

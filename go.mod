@@ -1,4 +1,4 @@
-module gitlab.com/kpouget_psap/specfem-client
+module github.com/openshift-psap/specfem-client
 
 go 1.14
 
@@ -43,12 +43,12 @@ require (
 	github.com/imdario/mergo v0.3.10 // indirect
 	github.com/kubeflow/common v0.0.0-20200313171840-64f943084a05
 	github.com/kubeflow/mpi-operator v0.2.3
+	github.com/openshift-psap/specfem-client-api v0.0.0-20201030163614-baf05458d80e
 	github.com/openshift/api v0.0.0-20200710154525-af4dd20aed23
 	github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
 	github.com/openshift/oc v4.2.0-alpha.0+incompatible
 	github.com/openshift/origin v0.0.0-20160503220234-8f127d736703
 	github.com/pkg/errors v0.9.1
-	gitlab.com/kpouget_psap/specfem-api v0.0.0-20200915073429-4d164576e5c6
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	k8s.io/api v0.18.5
