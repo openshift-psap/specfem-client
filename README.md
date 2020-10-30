@@ -15,7 +15,7 @@ This repository contains a GO client for running
 
 > The version 7.0 release offers GPU graphics card support for both OpenCL and CUDA hardware accelerators, based on an automatic source-to-source transformation library (Videau et al. 2013). It offers additional support for ADIOS file I/O formats and contains important bug fixes related to 3D topography and geographic/geocentric transformations. Seismogram file names adapt a new naming convention, with better compatibility to the seismogram specifications by the Incorporated Research Institutions for Seismology (IRIS).
 
-> The version embeds non-blocking MPI communications and includes several performance improvements in mesher and solver. It provides a perfectly load-balanced mesh for 3D mantle models honoring shallow oceanic Moho (depths less than 15 km) and deep continental Moho (depths greater than 35 km). It also accommodates European crustal models EPcrust (Molinari & Morelli, 2011) and EuCrust07 (Tesauro et al., 2008), which may be combined with global crustal model Crust2.0. Sedimentary wavespeeds are superimposed on the mesh if sediment thickness exceeds 2 km. 
+> The version embeds non-blocking MPI communications and includes several performance improvements in mesher and solver. It provides a perfectly load-balanced mesh for 3D mantle models honoring shallow oceanic Moho (depths less than 15 km) and deep continental Moho (depths greater than 35 km). It also accommodates European crustal models EPcrust (Molinari & Morelli, 2011) and EuCrust07 (Tesauro et al., 2008), which may be combined with global crustal model Crust2.0. Sedimentary wavespeeds are superimposed on the mesh if sediment thickness exceeds 2 km.
 
 Requirements
 ============

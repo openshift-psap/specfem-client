@@ -20,7 +20,7 @@ var to_delete = map[string]bool{}
 func initDelete() {
 	for _, key := range DELETE_KEYS {
 		delete_it := (key == *flag_delete) || delete_mode
-		to_delete[key] = delete_it 
+		to_delete[key] = delete_it
 		if delete_it {
 			if !delete_mode {
 				log.Println("Stages to delete:")
@@ -33,7 +33,7 @@ func initDelete() {
 	if *flag_delete == "" {
 		return
 	}
-	
+
 	if !delete_mode {
 		log.Fatalf("FATAL: wrong delete flag option: %v\n", *flag_delete)
 	}
@@ -55,14 +55,14 @@ func main() {
 	if err = FetchManifests(); err != nil {
 		log.Fatalf("FATAL: %+v\n", err)
 	}
-	
+
 	var configName string
 	if *flag_cfg == "" {
 		configName = "specfem-sample"
 	} else {
 		configName = *flag_cfg
 	}
-	
+
 	var app *specfemv1.SpecfemApp
 
 	if app, err = getSpecfemConfig(configName); err != nil {
@@ -76,6 +76,6 @@ func main() {
 	if err = RunSpecfem(app); err != nil {
 		log.Fatalf("FATAL: %v\n", err)
 	}
-	
+
 	log.Println("Done :)")
 }

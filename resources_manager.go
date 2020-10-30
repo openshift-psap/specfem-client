@@ -6,14 +6,14 @@ import (
 	"log"
 	"os"
 	"time"
-	
+
 	errs "github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	specfemv1 "github.com/openshift-psap/specfem-client-api/pkg/apis/specfem/v1alpha1"
 )
 
 func RunMesherSolver(app *specfemv1.SpecfemApp, stage string) error {
-	if app.Spec.Exec.Nproc == 0 {		
+	if app.Spec.Exec.Nproc == 0 {
 		return RunSeqMesherSolver(app, stage)
 	} else {
 		return RunMpiJob(app, stage)
@@ -55,10 +55,10 @@ func CreateBaseAndMesherImages(app *specfemv1.SpecfemApp) error {
 	}
 
 CheckMesher:
-	mesher_image := fmt.Sprintf("specfem:mesher-%dproc-%dnex", 
+	mesher_image := fmt.Sprintf("specfem:mesher-%dproc-%dnex",
 		app.Spec.Exec.Nproc, app.Spec.Specfem.Nex)
 
-	if ! delete_mode {		
+	if ! delete_mode {
 		if err := CheckImageTag(mesher_image, "cache"); err == nil {
 			log.Println("Found mesher image, don't recreate it.")
 			return nil
@@ -86,9 +86,9 @@ func CreateSolverImage(app *specfemv1.SpecfemApp, solver_image string) error {
 	if err != nil {
 		return errs.Wrap(err, "Could not find or define builder node ...")
 	}
-	
+
 	for _, yamlResource := range[]YamlResourceSpec{
-		yamlBuildahMesher2SolverScriptCM, yamlTunedLoadFuseModule} {	
+		yamlBuildahMesher2SolverScriptCM, yamlTunedLoadFuseModule} {
 		if _, err := CreateYamlResource(app, yamlResource, "mesher"); err != nil {
 			return err
 		}
@@ -99,13 +99,13 @@ func CreateSolverImage(app *specfemv1.SpecfemApp, solver_image string) error {
 			log.Println("Found solver image, don't recreate it.")
 			return nil
 		}
-		
-		if err := WaitForTunedProfile("openshift-fuse", builderNodeName, 
+
+		if err := WaitForTunedProfile("openshift-fuse", builderNodeName,
 			metav1.ListOptions{LabelSelector: "openshift-app=tuned"}); err != nil {
 			return err
 		}
 	}
-	
+
 	podName, err := CreateYamlResource(app, yamlBuildahBuildSolverImagePod, "mesher")
 	if err != nil {
 		return err
@@ -122,12 +122,12 @@ func CreateSolverImage(app *specfemv1.SpecfemApp, solver_image string) error {
 	if err := CheckImageTag(solver_image, "cache"); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
 func HasMpiWorkerPods(app *specfemv1.SpecfemApp, stage string) (int, error) {
-	pods, err := client.ClientSet.CoreV1().Pods(NAMESPACE).List(context.TODO(), 
+	pods, err := client.ClientSet.CoreV1().Pods(NAMESPACE).List(context.TODO(),
 		metav1.ListOptions{LabelSelector: "mpi_role_type=worker,mpi_job_name=mpi-"+stage})
 
 	if err != nil {
@@ -146,7 +146,7 @@ func RunMpiJob(app *specfemv1.SpecfemApp, stage string) error {
 		if err != nil {
 			return err
 		}
-		
+
 		fmt.Printf("found %d worker pods from previous mpijob/mpi-%s ...\n", pod_cnt, stage)
 		if pod_cnt == 0 {
 			break
@@ -176,7 +176,7 @@ func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if delete_mode {
 		CleanupJobPods(app, yamlSaveSolverOutputJob)
 	}
@@ -184,7 +184,7 @@ func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
 	if jobName == "" {
 		return nil
 	}
-	
+
 	var logs *string = nil
 	err = WaitWithJobLogs(jobName, "", &logs)
 	if err != nil {
@@ -195,27 +195,27 @@ func RunSaveSolverOutput(app *specfemv1.SpecfemApp) error {
 	}
 
 	date_uid := time.Now().Format("20060102_150405")
-	
+
     SAVELOG_FILENAME := fmt.Sprintf("/tmp/specfem.solver-%dproc-%dcores-%dnex_%s.log",
 		app.Spec.Exec.Nproc, app.Spec.Exec.Ncore, app.Spec.Specfem.Nex, date_uid)
-		
+
 	output_f, err := os.Create(SAVELOG_FILENAME)
 
 	if err != nil {
 		return err
 	}
-	
+
 	defer output_f.Close()
 
 	output_f.WriteString(*logs)
 
 	log.Printf("Saved solver logs into '%s'", SAVELOG_FILENAME)
-	
+
 	return nil
 }
 
 func RunSpecfem(app *specfemv1.SpecfemApp) error {
-	solver_image := fmt.Sprintf("specfem:solver-%dproc-%dnex", 
+	solver_image := fmt.Sprintf("specfem:solver-%dproc-%dnex",
 		app.Spec.Exec.Nproc, app.Spec.Specfem.Nex)
 
 

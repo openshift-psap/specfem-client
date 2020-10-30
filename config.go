@@ -7,17 +7,17 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
-	
+
 	errs "github.com/pkg/errors"
 	specfemv1 "github.com/openshift-psap/specfem-client-api/pkg/apis/specfem/v1alpha1"
 )
 
 func checkSpecfemConfig(app *specfemv1.SpecfemApp) error {
-	
+
 	actual_nproc_val := int32(math.Sqrt(float64(app.Spec.Exec.Nproc)))
 	if actual_nproc_val*actual_nproc_val != app.Spec.Exec.Nproc {
 		return fmt.Errorf("Invalid nproc value (%d), it must be a perfect square ...",
@@ -33,12 +33,12 @@ func checkSpecfemConfig(app *specfemv1.SpecfemApp) error {
 	if nex % (8*actual_nproc_val) != 0 {
 		return fmt.Errorf("NEX(=%d) must be a multiple of 8*NPROC(=%d)", nex, actual_nproc_val)
 	}
- 
+
 	nproc := app.Spec.Exec.Nproc
 	slots := app.Spec.Exec.SlotsPerWorker
-	
+
 	if nproc % slots != 0 {
-		return fmt.Errorf("NProc(=%d) must be a multiple of SlotsPerWorker(=%d)", 
+		return fmt.Errorf("NProc(=%d) must be a multiple of SlotsPerWorker(=%d)",
 			nproc, slots)
 	}
 
@@ -64,9 +64,9 @@ func getSpecfemConfig(configName string) (*specfemv1.SpecfemApp, error) {
 	if _, _, err := s.Decode([]byte(yamlSpecfem), nil, &app); err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("Could not (re)parse config file 'config/%s.yaml'", configName))
 	}
-	
+
 	fmt.Printf("Application configured from config/%s.yaml: \n%s", configName, yamlSpecfem)
-	
+
 	return &app, nil
 }
 
@@ -75,7 +75,7 @@ var manifests map[string]string
 func FetchManifests() error {
 	var FETCH_FROM_CM = false
 	var err error
-	
+
 	if FETCH_FROM_CM {
 		return fetchManifestsFromCM()
 	} else {
@@ -98,9 +98,9 @@ func fetchManifestsFromCM() error {
 	if err != nil {
 		return errs.Wrap(err, "Failed to fetch the manifests ConfigMap ...")
 	}
-	
+
 	manifests_, found, err := unstructured.NestedMap(config.Object, "data")
-	
+
 	if !found {
 		return fmt.Errorf("configmap/%s not found ...", cmName)
 	} else if err != nil {
@@ -135,10 +135,10 @@ func fetchManifestsFromPath(path string) (map[string]string, error) {
 	if err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("Failed to fetch the manifests from '%s'", path))
 	}
-	
+
 	for _, filename := range filenames {
 		buffer, err := ioutil.ReadFile(filename)
-		
+
 		if err != nil {
 			// ignore IsNotExist errors...this is expected
 			if os.IsNotExist(err) {

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	specfemv1 "github.com/openshift-psap/specfem-client-api/pkg/apis/specfem/v1alpha1"
@@ -88,7 +88,7 @@ func yamlBuildahBuildSolverImagePod() (string, YamlResourceTmpl) {
 	}
 
 	log.Printf("Using push secret '%s'", pushsecretName)
-	
+
 	return "05c_job_mesher2solver-builder.yaml", func(app *specfemv1.SpecfemApp) *TemplateCfg {
 		cfg := &TemplateCfg{}
 		cfg.SecretNames.DockerCfgPush = pushsecretName
@@ -119,7 +119,7 @@ func yamlRunMpiMesherSolverJob(stage string) YamlResourceSpec {
 		return "99_mpijob_meshersolver.yaml", func(app *specfemv1.SpecfemApp) *TemplateCfg {
 			cfg := &TemplateCfg{}
 			cfg.MesherSolver.Stage = stage
-			cfg.MesherSolver.Image += fmt.Sprintf("%s-%dproc-%dnex", 
+			cfg.MesherSolver.Image += fmt.Sprintf("%s-%dproc-%dnex",
 				stage, app.Spec.Exec.Nproc, app.Spec.Specfem.Nex)
 
 			cfg.MesherSolver.Nreplicas = int(app.Spec.Exec.Nproc/app.Spec.Exec.SlotsPerWorker)
