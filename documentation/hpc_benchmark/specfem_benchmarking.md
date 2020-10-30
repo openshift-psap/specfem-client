@@ -20,8 +20,9 @@ than 180 measurements!
 
 To automatize the execution of this heavy-weight benchmarking, we
 reused a tool developed as part of another Red Hat project (see its
-[presentation][matrix-bench pres] and [repository][matrix-bench repo]). The tool takes as
-input a list of parameters to [benchmark][matrix-bench bench]:
+[presentation][matrix-bench pres] and
+[repository][matrix-bench repo]). The tool takes as input a list of
+parameters to [benchmark][matrix-bench bench]:
 
 ```
       platform:  baremetal, podman, openshift,
