@@ -20,7 +20,7 @@ var imagestreamResource = schema.GroupVersionResource{Version: "v1", Resource: "
 var routeResource       = schema.GroupVersionResource{Version: "v1", Resource: "routes",       Group: "route.openshift.io"}
 var secretResource       = schema.GroupVersionResource{Version: "v1", Resource: "secrets"}
 
-var NAMESPACE = "specfem"
+var NAMESPACE = ""
 
 var USE_UBI_BASE_IMAGE = true
 

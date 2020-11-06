@@ -127,7 +127,7 @@ func CreateSolverImage(app *specfemv1.SpecfemApp, solver_image string) error {
 }
 
 func HasMpiWorkerPods(app *specfemv1.SpecfemApp, stage string) (int, error) {
-	pods, err := client.ClientSet.CoreV1().Pods(NAMESPACE).List(context.TODO(),
+	pods, err := client.ClientSet.CoreV1().Pods(app.ObjectMeta.Namespace).List(context.TODO(),
 		metav1.ListOptions{LabelSelector: "mpi_role_type=worker,mpi_job_name=mpi-"+stage})
 
 	if err != nil {

@@ -1,7 +1,6 @@
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  namespace: specfem
   name: specfem
   labels:
     app: specfem

@@ -73,6 +73,8 @@ func main() {
 		log.Fatalf("FATAL: config error: %+v\n", err)
 	}
 
+	NAMESPACE = app.ObjectMeta.Namespace
+
 	if err = RunSpecfem(app); err != nil {
 		log.Fatalf("FATAL: %v\n", err)
 	}

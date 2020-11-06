@@ -68,7 +68,7 @@ func applyTemplate(yamlSpec *[]byte, templateFct YamlResourceTmpl, app *specfemv
 }
 
 func createFromYamlManifest(yamlManifest string, templateFct YamlResourceTmpl, app *specfemv1.SpecfemApp) (schema.GroupVersionResource, *unstructured.Unstructured, error) {
-	namespace := NAMESPACE
+	namespace := app.ObjectMeta.Namespace
 	scanner := yamlutil.NewYAMLScanner([]byte(manifests[yamlManifest]))
 
 	if !scanner.Scan() {
@@ -102,7 +102,9 @@ func createFromYamlManifest(yamlManifest string, templateFct YamlResourceTmpl, a
 		return schema.GroupVersionResource{}, nil, errs.Wrap(err, "Cannot unmarshall json spec, check your manifests")
 	}
 
-	obj.SetNamespace(namespace)
+	if obj.GetNamespace() == "" {
+		obj.SetNamespace(namespace)
+	}
 
 	resType := schema.GroupVersionResource{
 		Version: obj.GroupVersionKind().Version,
